@@ -75,13 +75,16 @@ private:
   nav_msgs::Odometry current_state_;
   geometry_msgs::Vector3 velocity_measurement_;
   Mat prev_src_, optical_flow_velocity_, N_;
-  vector<Point2f> corners_, corners_LK_, prev_corners_;
+  vector<Point2f> points_[2];
   bool no_normal_estimate_;
 
   // Functions (feel free to add more helper functions if needed)
   void cameraCallback(const sensor_msgs::ImageConstPtr msg);
   void estimateCallback(const nav_msgs::Odometry msg);
   void publishVelocity();
+
+  Mat skewSymmetric(Mat m);
+  Mat inertialToCamera(Mat v, double phi, double theta);
 };
 
 } // namespace ekf
