@@ -64,11 +64,11 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
   double q = current_state_.twist.twist.angular.y;
   double r = current_state_.twist.twist.angular.z;
 
-  cout << "n calc" << endl;
+  // Calculate Inertial Normal Vector
   Mat N_inertial = (Mat_<double>(3,1) <<  0, 0, -1);
   Mat N_c = inertialToCamera(N_inertial, phi, theta);
-  cout << "n calc done" << endl;
 
+  // Initialize output Mat
   Mat dst;
 
   // points_[0] are the points from the previous frame
@@ -90,12 +90,12 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
         Size(31,31), 3, TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03),
         0, 0.001);
 
-    // Copy previous image onto the output in color
-    cvtColor(prev_src_,dst, COLOR_GRAY2BGR);
+    // Copy previous image onto the output in color.  Color is for plotting motion
+    cvtColor(prev_src_, dst, COLOR_GRAY2BGR);
 
-    // Go through points, and draw correspondences.  points_[1] will reduce in size,
-    // and only have points that found correspondences in the second image
-    // we can use this to track points across multiple images
+    // Go through points, and draw correspondences.  both points_ vectors will
+    // reduce in size, and only have points that found correspondences in both
+    // images we can use this to track points across multiple images in the future
     int j, k;
     for( j = k = 0; j < points_[1].size(); j++ ){
       if( status[j] ){
@@ -118,21 +118,15 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     out_msg.header = cv_ptr->header;
     out_msg.encoding = sensor_msgs::image_encodings::BGR8;
     out_msg.image = dst;
-
     flow_image_pub_.publish(out_msg.toImageMsg());
 
-    // calculate velocity - using II.D from On-board Velocity Estimation
-    // and Closed-loop Control of a Quadrotor UAV based on Optical Flow
+    // calculate velocity - using II.D from "On-board Velocity Estimation
+    // and Closed-loop Control of a Quadrotor UAV based on Optical Flow"
     // - Grabe et al. ICRA 2012
     double current_time = ros::Time::now().toSec();
     double dt = current_time - prev_time;
     prev_time = current_time;
     Mat A, B;
-    double average_x(0), average_y(0);
-    double max_x_flow(0), max_y_flow(0);
-    double unrot_avgx(0), unrot_avgy(0);
-    double unrot_maxx(0), unrot_maxy(0);
-    cout << "\n\n\n\n\n\n 8888888888888888888888888888888888888888888888888" << endl;
     for( int j = 0; j<points_[1].size(); j++){
       // First, De-rotate measurements (eq. 7)
       double xx = points_[1][j].x;
@@ -140,24 +134,13 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
       double vx = (points_[0][j].x-xx)/dt;
       double vy = (points_[0][j].y-xy)/dt;
       double vx_prime = vx - (-xx*xy*-q + (1+xx*xx)*-p + xy*r);  // Remember Camera Frame
-      double vy_prime = vy - (-((1+xy)*(1+xy))*-q + xx*xy*-p + xx*r);
-
-      average_x = average_x + vx_prime;
-      average_y = average_y + vy_prime;
-      max_x_flow = (fabs(vx_prime) > fabs(max_x_flow)) ? vx_prime : max_x_flow;
-      max_y_flow = (fabs(vy_prime) > fabs(max_y_flow)) ? vy_prime : max_y_flow;
-
-      unrot_avgx = unrot_avgx + vx;
-      unrot_avgy = unrot_avgy + vy;
-      unrot_maxx = (fabs(vx) > fabs(unrot_maxx))? vx : unrot_maxx;
-      unrot_maxy = (fabs(vy) > fabs(unrot_maxy))? vy : unrot_maxy;
-
+      double vy_prime = vy - (-((1+xy)*(1+xy))*-q + xx*xy*-p + xx*r); // <-- THIS ISN'T WORKING
 
       //cout << "point " << j << ": v: " << vx << ", " << vy << "\t rot_v:" << vx_prime << ", " << vy_prime<< "\t pt: " << points_[0][j].x << ", " << points_[0][j].y << " -> " << xx << ", " << xy << " \t dt: " << dt <<  endl;
 
       // Then, Find v/d (eq. 9)
       Mat x = (Mat_ <double>(3,1) << (double)points_[1][j].x, (double)points_[1][j].y, 0.0);
-      Mat u = (Mat_ <double>(3,1) << vx, vy, 0);
+      Mat u = (Mat_ <double>(3,1) << vx_prime, vy_prime, 0);
       Mat a = skewSymmetric(x);
       Mat b = skewSymmetric(x)*u/(N_c.t()*x);
       A.push_back(a);
@@ -165,21 +148,8 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     }
     // Solve Least-Squares Approximation (eq. 11)
     optical_flow_velocity_ = A.inv(DECOMP_SVD)*B*-pd;
-    cout << " optical_flow_velocity \n" << optical_flow_velocity_ << endl;
-    average_x = average_x/20.0;
-    average_y = average_x/20.0;
-    unrot_avgx = unrot_avgx/20.0;
-    unrot_avgy   = unrot_avgy/20.0;
 
-    cout << "average flow = " << average_x << ", " << average_y << " max = " << max_x_flow << ", " << max_y_flow << endl;
-    cout << "unrot flow = " << unrot_avgx << ", " << unrot_avgy << " max = " << unrot_maxx << ", " << unrot_maxy << endl;
-
-    double scale_factor_x = optical_flow_velocity_.at<double>(0)/vel_x;
-    double scale_factor_y = optical_flow_velocity_.at<double>(1)/vel_y;
-
-    cout << "scale factor =" << scale_factor_x << ", " << scale_factor_y << endl;
-
-    // find new points
+    // find new points for next loop
     goodFeaturesToTrack(src, points_[1], 500, 0.01, 10, Mat(), 3, 0, 0.04);
     cornerSubPix(src, points_[1], Size(11,11), Size(-1,-1),
         TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03));
@@ -203,6 +173,7 @@ void monoVO::estimateCallback(const nav_msgs::Odometry msg)
   current_state_ = msg;
   return;
 }
+
 
 void monoVO::publishVelocity()
 {
