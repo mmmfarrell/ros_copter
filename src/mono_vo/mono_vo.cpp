@@ -54,15 +54,17 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
   Mat src = cv_ptr->image;
 
   // Pull Out Current State
+  // Remember that when using Gazebo, current state will be in NWU,
+  // but when actually flying, it will be NED
   double pd = current_state_.pose.pose.position.z;
   double vel_x = current_state_.twist.twist.linear.x;
-  double vel_y = current_state_.twist.twist.linear.y;
+  double vel_y = -1.0*current_state_.twist.twist.linear.y;
   double phi = current_state_.pose.pose.orientation.x;
-  double theta = current_state_.pose.pose.orientation.y;
-  double psi = current_state_.pose.pose.orientation.z;
+  double theta = -1.0*current_state_.pose.pose.orientation.y;
+  double psi = -1.0*current_state_.pose.pose.orientation.z;
   double p = current_state_.twist.twist.angular.x;
-  double q = current_state_.twist.twist.angular.y;
-  double r = current_state_.twist.twist.angular.z;
+  double q = -1.0*current_state_.twist.twist.angular.y;
+  double r = -1.0*current_state_.twist.twist.angular.z;
 
   // Calculate Inertial Normal Vector
   Mat N_inertial = (Mat_<double>(3,1) <<  0, 0, -1);
@@ -75,7 +77,7 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
   // points_[1] are the points from the current frame
 
   if(initializing){
-    goodFeaturesToTrack(src, points_[1], 500, 0.01, 10, Mat(), 3, 0, 0.04);
+    goodFeaturesToTrack(src, points_[1], GFTT_params_.max_corners, 0.01, 10, Mat(), 3, 0, 0.04);
     cornerSubPix(src, points_[1], Size(11,11), Size(-1,-1),
         TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03));
     initializing = false;
@@ -90,6 +92,9 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
         Size(31,31), 3, TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03),
         0, 0.001);
 
+    vector<uchar> inliers;
+    Mat F = findFundamentalMat(points_[0], points_[1], inliers);
+
     // Copy previous image onto the output in color.  Color is for plotting motion
     cvtColor(prev_src_, dst, COLOR_GRAY2BGR);
 
@@ -98,7 +103,7 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     // images we can use this to track points across multiple images in the future
     int j, k;
     for( j = k = 0; j < points_[1].size(); j++ ){
-      if( status[j] ){
+      if( status[j] && inliers[j] ){
         stringstream text;
         text << k;
         points_[0][k] = points_[0][j];
@@ -121,7 +126,7 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     flow_image_pub_.publish(out_msg.toImageMsg());
 
     // calculate velocity - using II.D from "On-board Velocity Estimation
-    // and Closed-loop Control of a Quadrotor UAV based on Optical Flow"
+    // and Closed-loop Control of a Quadrotor UAV based   on Optical Flow"
     // - Grabe et al. ICRA 2012
     double current_time = ros::Time::now().toSec();
     double dt = current_time - prev_time;
@@ -136,7 +141,7 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
       double vx_prime = vx - (-xx*xy*-q + (1+xx*xx)*-p + xy*r);  // Remember Camera Frame
       double vy_prime = vy - (-((1+xy)*(1+xy))*-q + xx*xy*-p + xx*r); // <-- THIS ISN'T WORKING
 
-      //cout << "point " << j << ": v: " << vx << ", " << vy << "\t rot_v:" << vx_prime << ", " << vy_prime<< "\t pt: " << points_[0][j].x << ", " << points_[0][j].y << " -> " << xx << ", " << xy << " \t dt: " << dt <<  endl;
+//      cout << "point " << j << ": v: " << vx << ", " << vy << "\t rot_v:" << vx_prime << ", " << vy_prime<< "\t pt: " << points_[0][j].x << ", " << points_[0][j].y << " -> " << xx << ", " << xy << " \t dt: " << dt <<  endl;
 
       // Then, Find v/d (eq. 9)
       Mat x = (Mat_ <double>(3,1) << (double)points_[1][j].x, (double)points_[1][j].y, 0.0);
@@ -149,10 +154,17 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     // Solve Least-Squares Approximation (eq. 11)
     optical_flow_velocity_ = A.inv(DECOMP_SVD)*B*-pd;
 
-    // find new points for next loop
-    goodFeaturesToTrack(src, points_[1], 500, 0.01, 10, Mat(), 3, 0, 0.04);
-    cornerSubPix(src, points_[1], Size(11,11), Size(-1,-1),
-        TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03));
+    // get more corners to make up for lost corners
+    if(GFTT_params_.max_corners - points_[1].size() > 0){
+      vector<Point2f> new_points;
+      goodFeaturesToTrack(src, new_points, GFTT_params_.max_corners-points_[1].size(), 0.01, 10, Mat(), 3, 0, 0.04);
+      cornerSubPix(src, points_[1], Size(11,11), Size(-1,-1),
+          TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03));
+      for(int k = 0; k<new_points.size(); k++){
+        points_[1].push_back(new_points[k]);
+      }
+    }
+
   }
   // save off points for next loop
   std::swap(points_[1], points_[0]);
