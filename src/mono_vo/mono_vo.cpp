@@ -10,7 +10,7 @@ monoVO::monoVO() :
 {
   // Get Parameters from Server
   // arguments are "name", "variable to put the value into", "default value"
-  nh_private_.param<int>("GFTT_maxCorners", GFTT_params_.max_corners, 1000);
+  nh_private_.param<int>("GFTT_maxCorners", GFTT_params_.max_corners, 20);
   nh_private_.param<double>("GFTT_qualityLevel", GFTT_params_.quality_level, 0.01);
   nh_private_.param<double>("GFTT_minDist", GFTT_params_.min_dist, 5);
   nh_private_.param<int>("GFTT_blockSize", GFTT_params_.block_size, 3);
@@ -81,7 +81,7 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     cornerSubPix(src, points_[1], Size(11,11), Size(-1,-1),
         TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03));
     initializing = false;
-    prev_time = ros::Time::now().toSec();
+    prev_time = msg->header.stamp.toSec();
   }else if(!points_[0].empty()){
     vector<uchar> status;
     vector<float> err;
@@ -128,31 +128,49 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     // calculate velocity - using II.D from "On-board Velocity Estimation
     // and Closed-loop Control of a Quadrotor UAV based   on Optical Flow"
     // - Grabe et al. ICRA 2012
-    double current_time = ros::Time::now().toSec();
+    double current_time = msg->header.stamp.toSec();
     double dt = current_time - prev_time;
     prev_time = current_time;
     Mat A, B;
+    // find average velocity of each point
+    double avg_x(0), avg_y(0);
     for( int j = 0; j<points_[1].size(); j++){
       // First, De-rotate measurements (eq. 7)
       double xx = points_[1][j].x;
       double xy = points_[1][j].y;
       double vx = (points_[0][j].x-xx)/dt;
       double vy = (points_[0][j].y-xy)/dt;
-      double vx_prime = vx - (-xx*xy*-q + (1+xx*xx)*-p + xy*r);  // Remember Camera Frame
-      double vy_prime = vy - (-((1+xy)*(1+xy))*-q + xx*xy*-p + xx*r); // <-- THIS ISN'T WORKING
+      Mat derotate = (Mat_<double>(2,3) <<
+                          -xx*xy, 1+xx*xx, -xy,
+                          -(1+xy*xy), xx*xy, xx);
+      Mat omega_b = (Mat_<double>(3,1) << p, q, r);
+      static Mat R_b_to_c = (Mat_<double>(3,3) <<
+                                 0,  1,  0,
+                                -1,  0,  0,
+                                 0,  0,  1 );
+      Mat rotated_velocity = derotate*R_b_to_c*omega_b;
+      double vx_prime = rotated_velocity.at<double>(0);
+      double vy_prime = rotated_velocity.at<double>(1);
 
-//      cout << "point " << j << ": v: " << vx << ", " << vy << "\t rot_v:" << vx_prime << ", " << vy_prime<< "\t pt: " << points_[0][j].x << ", " << points_[0][j].y << " -> " << xx << ", " << xy << " \t dt: " << dt <<  endl;
+      avg_x += vx;
+      avg_y += vy;
+
+      cout << "point " << j << ": v: " << vx << ", " << vy << "\t rot_v:" << vx_prime << ", " << vy_prime<< "\t pt: " << points_[0][j].x << ", " << points_[0][j].y << " -> " << xx << ", " << xy << " \t dt: " << dt <<  endl;
 
       // Then, Find v/d (eq. 9)
       Mat x = (Mat_ <double>(3,1) << (double)points_[1][j].x, (double)points_[1][j].y, 0.0);
-      Mat u = (Mat_ <double>(3,1) << vx_prime, vy_prime, 0);
+      Mat u = (Mat_ <double>(3,1) << vx, vy, 0);
       Mat a = skewSymmetric(x);
       Mat b = skewSymmetric(x)*u/(N_c.t()*x);
       A.push_back(a);
       B.push_back(b);
     }
+
+    cout << "avg vel = " << avg_x/points_[1].size() << ", " << avg_y/points_[1].size() <<endl;
+    cout << "ang vel = " << p << ", " << q << ", " << r << endl;
     // Solve Least-Squares Approximation (eq. 11)
     optical_flow_velocity_ = A.inv(DECOMP_SVD)*B*-pd;
+    cout << "vel meas = " << optical_flow_velocity_ << endl;
 
     // get more corners to make up for lost corners
     if(GFTT_params_.max_corners - points_[1].size() > 0){
