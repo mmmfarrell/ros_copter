@@ -10,7 +10,7 @@ monoVO::monoVO() :
 {
   // Get Parameters from Server
   // arguments are "name", "variable to put the value into", "default value"
-  nh_private_.param<int>("GFTT_maxCorners", GFTT_params_.max_corners, 70);
+  nh_private_.param<int>("GFTT_maxCorners", GFTT_params_.max_corners, 1000);
   nh_private_.param<double>("GFTT_qualityLevel", GFTT_params_.quality_level, 0.01);
   nh_private_.param<double>("GFTT_minDist", GFTT_params_.min_dist, 5);
   nh_private_.param<int>("GFTT_blockSize", GFTT_params_.block_size, 3);
