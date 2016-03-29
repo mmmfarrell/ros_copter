@@ -10,7 +10,7 @@ monoVO::monoVO() :
 {
   // Get Parameters from Server
   // arguments are "name", "variable to put the value into", "default value"
-  nh_private_.param<int>("GFTT_maxCorners", GFTT_params_.max_corners, 20);
+  nh_private_.param<int>("GFTT_maxCorners", GFTT_params_.max_corners, 200);
   nh_private_.param<double>("GFTT_qualityLevel", GFTT_params_.quality_level, 0.01);
   nh_private_.param<double>("GFTT_minDist", GFTT_params_.min_dist, 5);
   nh_private_.param<int>("GFTT_blockSize", GFTT_params_.block_size, 3);
@@ -33,6 +33,9 @@ monoVO::monoVO() :
 
   // Initialize Filters and other class variables
   optical_flow_velocity_ = (Mat_<double>(3,1) << 0, 0, 0);
+
+  optical_center_ = Point(320,240);
+  focal_length_ = Point(205.46963709898583,  205.46963709898583);
   return;
 }
 
@@ -108,13 +111,17 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
         text << k;
         points_[0][k] = points_[0][j];
         points_[1][k] = points_[1][j];
+//        stringstream ss;
+//        ss << j;
+//        putText(dst, ss.str().c_str(), points_[1][j], FONT_HERSHEY_COMPLEX, 1.0, Scalar(255,255,0));
         circle( dst, points_[1][k], 2, Scalar(0,0,255), -1, 1);
-        circle( dst, points_[0][k], 2, Scalar(0,255,0), -1, 1);
+        circle( dst, points_[0][k], 1, Scalar(0,255,0), -1, 1);
         //putText( dst, text.str().c_str(), points_[0][k], FONT_HERSHEY_PLAIN, 1.5, Scalar(255, 0, 255));
         line(dst, points_[1][j], points_[0][j], Scalar(0,0,255));
         k++;
       }
     }
+    circle( dst, optical_center_, 5, Scalar(0,255,255), -1, 1);
     points_[0].resize(k);
     points_[1].resize(k);
 
@@ -132,33 +139,37 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     double dt = current_time - prev_time;
     prev_time = current_time;
     Mat A, B;
+    static Mat R_b_to_c = (Mat_<double>(3,3) <<
+                               0,  1,  0,
+                              -1,  0,  0,
+                               0,  0,  1 );
     // find average velocity of each point
     double avg_x(0), avg_y(0);
     for( int j = 0; j<points_[1].size(); j++){
-      // First, De-rotate measurements (eq. 7)
-      double xx = points_[1][j].x;
-      double xy = points_[1][j].y;
-      double vx = (points_[0][j].x-xx)/dt;
-      double vy = (points_[0][j].y-xy)/dt;
+      // First convert to image coordinates
+      double xx = (points_[1][j].x - optical_center_.x)/focal_length_.x;
+      double xy = (points_[1][j].y - optical_center_.y)/focal_length_.y;
+      double prev_x = (points_[0][j].x - optical_center_.x)/focal_length_.x;
+      double prev_y = (points_[0][j].y - optical_center_.y)/focal_length_.y;
+      double vx = (xx - prev_x)/dt;
+      double vy = (xy - prev_y)/dt;
+
+      // Second, De-rotate measurements (eq. 7)
       Mat derotate = (Mat_<double>(2,3) <<
-                          -xx*xy, 1+xx*xx, -xy,
+                          -xx*xy, (1+xx*xx), -xy,
                           -(1+xy*xy), xx*xy, xx);
       Mat omega_b = (Mat_<double>(3,1) << p, q, r);
-      static Mat R_b_to_c = (Mat_<double>(3,3) <<
-                                 0,  1,  0,
-                                -1,  0,  0,
-                                 0,  0,  1 );
       Mat rotated_velocity = derotate*R_b_to_c*omega_b;
-      double vx_prime = rotated_velocity.at<double>(0);
-      double vy_prime = rotated_velocity.at<double>(1);
+      double vx_prime = vx - rotated_velocity.at<double>(0);
+      double vy_prime = vy - rotated_velocity.at<double>(1);
 
       avg_x += vx;
       avg_y += vy;
 
-      cout << "point " << j << ": v: " << vx << ", " << vy << "\t rot_v:" << vx_prime << ", " << vy_prime<< "\t pt: " << points_[0][j].x << ", " << points_[0][j].y << " -> " << xx << ", " << xy << " \t dt: " << dt <<  endl;
+//      cout << "point " << j << ": v: " << vx << ", " << vy << "\t rot_v:" << vx_prime << ", " << vy_prime<< "\t pt: " << prev_x << ", " << prev_y << " -> " << xx << ", " << xy << " \t dt: " << dt <<  endl;
 
       // Then, Find v/d (eq. 9)
-      Mat x = (Mat_ <double>(3,1) << (double)points_[1][j].x, (double)points_[1][j].y, 0.0);
+      Mat x = (Mat_ <double>(3,1) << (double)points_[1][j].x, (double)points_[1][j].y, 1.0);
       Mat u = (Mat_ <double>(3,1) << vx, vy, 0);
       Mat a = skewSymmetric(x);
       Mat b = skewSymmetric(x)*u/(N_c.t()*x);
@@ -166,11 +177,13 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
       B.push_back(b);
     }
 
-    cout << "avg vel = " << avg_x/points_[1].size() << ", " << avg_y/points_[1].size() <<endl;
-    cout << "ang vel = " << p << ", " << q << ", " << r << endl;
+//    cout << "avg vel = " << avg_x/points_[1].size() << ", " << avg_y/points_[1].size() <<endl;
+//    cout << "ang vel = " << p << ", " << q << ", " << r << endl;
     // Solve Least-Squares Approximation (eq. 11)
-    optical_flow_velocity_ = A.inv(DECOMP_SVD)*B*-pd;
+    optical_flow_velocity_ = R_b_to_c.t()*(A.inv(DECOMP_SVD)*B*-pd);
     cout << "vel meas = " << optical_flow_velocity_ << endl;
+//    cout << "N_c = " << N_c << endl;
+
 
     // get more corners to make up for lost corners
     if(GFTT_params_.max_corners - points_[1].size() > 0){

@@ -78,6 +78,9 @@ private:
   vector<Point2f> points_[2];
   bool no_normal_estimate_;
 
+  Point optical_center_;
+  Point focal_length_;
+
   // Functions (feel free to add more helper functions if needed)
   void cameraCallback(const sensor_msgs::ImageConstPtr msg);
   void estimateCallback(const nav_msgs::Odometry msg);
