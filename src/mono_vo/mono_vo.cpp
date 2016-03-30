@@ -33,7 +33,6 @@ monoVO::monoVO() :
 
   // Initialize Filters and other class variables
   optical_flow_velocity_ = (Mat_<double>(3,1) << 0, 0, 0);
-
   optical_center_ = Point(320,240);
   focal_length_ = Point(205.46963709898583,  205.46963709898583);
   return;
@@ -143,10 +142,11 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
                                0,  1,  0,
                               -1,  0,  0,
                                0,  0,  1 );
+
     // find average velocity of each point
     double avg_x(0), avg_y(0);
     for( int j = 0; j<points_[1].size(); j++){
-      // First convert to image coordinates
+      // First convert points from image coordinates to 3D coordinates on the image plane
       double xx = (points_[1][j].x - optical_center_.x)/focal_length_.x;
       double xy = (points_[1][j].y - optical_center_.y)/focal_length_.y;
       double prev_x = (points_[0][j].x - optical_center_.x)/focal_length_.x;
@@ -154,22 +154,23 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
       double vx = (xx - prev_x)/dt;
       double vy = (xy - prev_y)/dt;
 
-      // Second, De-rotate measurements (eq. 7)
+      // Second, De-rotate measurements (eq. 7) -- pixels move opposite the rotation so just use eq. 11 from Visual Servo Control Part I: Basic Approaches by Chaumette & Hutchinson
       Mat derotate = (Mat_<double>(2,3) <<
-                          -xx*xy, (1+xx*xx), -xy,
-                          -(1+xy*xy), xx*xy, xx);
+                          xx*xy  , -(1+xx*xx),  xy,
+                          1+xy*xy, -xx*xy    , -xx  );
       Mat omega_b = (Mat_<double>(3,1) << p, q, r);
       Mat rotated_velocity = derotate*R_b_to_c*omega_b;
       double vx_prime = vx - rotated_velocity.at<double>(0);
       double vy_prime = vy - rotated_velocity.at<double>(1);
 
+      // average velocities aren't needed
       avg_x += vx;
       avg_y += vy;
 
 //      cout << "point " << j << ": v: " << vx << ", " << vy << "\t rot_v:" << vx_prime << ", " << vy_prime<< "\t pt: " << prev_x << ", " << prev_y << " -> " << xx << ", " << xy << " \t dt: " << dt <<  endl;
 
       // Then, Find v/d (eq. 9)
-      Mat x = (Mat_ <double>(3,1) << (double)points_[1][j].x, (double)points_[1][j].y, 1.0);
+      Mat x = (Mat_ <double>(3,1) << xx, xy, 1.0);
       Mat u = (Mat_ <double>(3,1) << vx, vy, 0);
       Mat a = skewSymmetric(x);
       Mat b = skewSymmetric(x)*u/(N_c.t()*x);
