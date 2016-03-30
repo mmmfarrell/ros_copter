@@ -255,8 +255,3 @@ Mat monoVO::inertialToCamera(Mat v, double phi, double theta){
 }
 
 } // namespace mono_vo
-
-
-
-
-
