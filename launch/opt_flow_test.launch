@@ -1,15 +1,31 @@
 <launch>
 
  <!-- Set non-default parameters -->
+ <rosparam subst_value="True">
+ mono_vo:          { max_corners: 200,
+                     parameter_filename: $(find ros_copter)/params/camera.yaml}
+</rosparam>
 
- <!--Estimation-->
-  <node name="mono_vo" pkg="ros_copter"  type="mono_vo" output="screen">
-    <rosparam command="load" file="$(find ros_copter)/params/estimator.yaml" />
-    <remap from="mocap" to="/naze/CG"/> 
+  <!--VO-->
+  <!-- <node name="mono_vo" pkg="ros_copter"  type="mono_vo" output="screen"/> -->
+
+  <!-- Camera -->
+  <node name="image_proc" pkg="image_proc" type="image_proc"/>
+
+  <!-- ROSbag -->
+  <node name="rosbag" pkg="rosbag" type="play" output="screen" args="/home/iman/opt_flow.bag --pause">
+    <remap from="camera/image_raw" to="/image_raw"/>
   </node>
-  
-  <node name="play" pkg="rosbag" type="play" args="/home/ecestudent/Desktop/mono_vo.bag -s 10 -u 35">
-   <remap from="relative_state" to="transformed_mocap"/>
+
+  <!-- Estimator -->
+  <node name="ekf" pkg="ros_copter" type="ekf"/>
+
+  <!-- Image View -->
+  <node name="opt_flow_view" pkg="image_view" type="image_view">
+    <remap from="image" to="optical_flow"/>
   </node>
- 
+  <node name="mono_view" pkg="image_view" type="image_view">
+    <remap from="image" to="image_mono"/>
+  </node>
+
 </launch>

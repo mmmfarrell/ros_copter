@@ -6,11 +6,12 @@ namespace mono_vo
 
 monoVO::monoVO() :
   nh_(ros::NodeHandle()),
-  nh_private_(ros::NodeHandle("~/mono_vo"))
+  nh_private_(ros::NodeHandle("~"))
 {
   // Get Parameters from Server
   // arguments are "name", "variable to put the value into", "default value"
-  nh_private_.param<int>("GFTT_maxCorners", GFTT_params_.max_corners, 200);
+  string filename;
+  nh_private_.param<int>("max_corners", GFTT_params_.max_corners, 200);
   nh_private_.param<double>("GFTT_qualityLevel", GFTT_params_.quality_level, 0.01);
   nh_private_.param<double>("GFTT_minDist", GFTT_params_.min_dist, 5);
   nh_private_.param<int>("GFTT_blockSize", GFTT_params_.block_size, 3);
@@ -24,17 +25,23 @@ monoVO::monoVO() :
   nh_private_.param<int>("FH_maxIters", FH_params_.max_iters, 2000);
   nh_private_.param<double>("FH_confidence", FH_params_.confidence, 0.995);
   nh_private_.param<bool>("no_normal_estimate", no_normal_estimate_, false);
+  nh_private_.param<string>("parameter_filename", filename, "camera.yaml" );
+
+  // Load Camera Parameters
+  FileStorage fstorage(filename,FileStorage::READ);
+  fstorage["I"] >> I_;
+  fstorage["D"] >> D_;
+  optical_center_ = Point(I_.at<double>(0,2),I_.at<double>(1,2));
+  focal_length_ = Point(I_.at<double>(0,0), I_.at<double>(1,1));
 
   // Setup publishers and subscribers
-  camera_sub_ = nh_.subscribe("/image_mono", 1, &monoVO::cameraCallback, this);
-  estimate_sub_ = nh_.subscribe("/shredder/ground_truth/odometry", 1, &monoVO::estimateCallback, this);
+  camera_sub_ = nh_.subscribe("image_mono", 1, &monoVO::cameraCallback, this);
+  estimate_sub_ = nh_.subscribe("estimate", 1, &monoVO::estimateCallback, this);
   velocity_pub_ = nh_.advertise<geometry_msgs::Vector3>("velocity", 1);
   flow_image_pub_ = nh_.advertise<sensor_msgs::Image>("optical_flow", 1);
 
   // Initialize Filters and other class variables
   optical_flow_velocity_ = (Mat_<double>(3,1) << 0, 0, 0);
-  optical_center_ = Point(320,240);
-  focal_length_ = Point(205.46963709898583,  205.46963709898583);
   return;
 }
 
@@ -58,7 +65,7 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
   // Pull Out Current State
   // Remember that when using Gazebo, current state will be in NWU,
   // but when actually flying, it will be NED
-  double pd = current_state_.pose.pose.position.z;
+  double pd = -1.0*current_state_.pose.pose.position.z;
   double vel_x = current_state_.twist.twist.linear.x;
   double vel_y = -1.0*current_state_.twist.twist.linear.y;
   double phi = current_state_.pose.pose.orientation.x;
@@ -83,7 +90,8 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     cornerSubPix(src, points_[1], Size(11,11), Size(-1,-1),
         TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03));
     initializing = false;
-    prev_time = msg->header.stamp.toSec();
+    prev_time = msg->header.stamp.toSec();\
+    undistortPoints(points_[1], undistort_points_[1], I_, D_);
   }else if(!points_[0].empty()){
     vector<uchar> status;
     vector<float> err;
@@ -124,6 +132,9 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     points_[0].resize(k);
     points_[1].resize(k);
 
+    // Undistort Points for image processing
+    undistortPoints(points_[1], undistort_points_[1], I_, D_);
+
     // publish the image
     cv_bridge::CvImage out_msg;
     out_msg.header = cv_ptr->header;
@@ -147,10 +158,14 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
     double avg_x(0), avg_y(0);
     for( int j = 0; j<points_[1].size(); j++){
       // First convert points from image coordinates to 3D coordinates on the image plane
-      double xx = (points_[1][j].x - optical_center_.x)/focal_length_.x;
-      double xy = (points_[1][j].y - optical_center_.y)/focal_length_.y;
-      double prev_x = (points_[0][j].x - optical_center_.x)/focal_length_.x;
-      double prev_y = (points_[0][j].y - optical_center_.y)/focal_length_.y;
+//      double xx = (points_[1][j].x - optical_center_.x)/focal_length_.x;
+//      double xy = (points_[1][j].y - optical_center_.y)/focal_length_.y;
+//      double prev_x = (points_[0][j].x - optical_center_.x)/focal_length_.x;
+//      double prev_y = (points_[0][j].y - optical_center_.y)/focal_length_.y;
+      double xx = undistort_points_[1][j].x;
+      double xy = undistort_points_[1][j].y;
+      double prev_x = undistort_points_[0][j].x;
+      double prev_y = undistort_points_[0][j].y;
       double vx = (xx - prev_x)/dt;
       double vy = (xy - prev_y)/dt;
 
@@ -162,6 +177,10 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
       Mat rotated_velocity = derotate*R_b_to_c*omega_b;
       double vx_prime = vx - rotated_velocity.at<double>(0);
       double vy_prime = vy - rotated_velocity.at<double>(1);
+
+      // Third, remove Velocity due to camera offset
+      Mat T = (Mat_<double>(3,1) << 0.5, -0.5, 0);
+      Mat offset_vel = skewSymmetric(R_b_to_c*omega_b)*T;
 
       // average velocities aren't needed
       avg_x += vx;
@@ -188,18 +207,21 @@ void monoVO::cameraCallback(const sensor_msgs::ImageConstPtr msg)
 
     // get more corners to make up for lost corners
     if(GFTT_params_.max_corners - points_[1].size() > 0){
-      vector<Point2f> new_points;
+      vector<Point2f> new_points, undistort_new_points;
       goodFeaturesToTrack(src, new_points, GFTT_params_.max_corners-points_[1].size(), 0.01, 10, Mat(), 3, 0, 0.04);
       cornerSubPix(src, points_[1], Size(11,11), Size(-1,-1),
           TermCriteria(TermCriteria::COUNT|TermCriteria::EPS,20,0.03));
+      undistortPoints(new_points, undistort_new_points, I_, D_);
       for(int k = 0; k<new_points.size(); k++){
         points_[1].push_back(new_points[k]);
+        undistort_points_[1].push_back(undistort_new_points[k]);
       }
     }
 
   }
   // save off points for next loop
   std::swap(points_[1], points_[0]);
+  std::swap(undistort_points_[1], undistort_points_[0]);
   cv::swap(prev_src_, src);
 
   //Store the resulting measurement in the geometry_msgs::Vector3 velocity_measurement.

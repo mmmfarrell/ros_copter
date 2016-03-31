@@ -75,9 +75,10 @@ private:
   nav_msgs::Odometry current_state_;
   geometry_msgs::Vector3 velocity_measurement_;
   Mat prev_src_, optical_flow_velocity_, N_;
-  vector<Point2f> points_[2];
+  vector<Point2f> points_[2], undistort_points_[2];
   bool no_normal_estimate_;
 
+  Mat I_, D_;
   Point optical_center_;
   Point focal_length_;
 
