@@ -45,10 +45,10 @@ int main()
 
     // create video capture object
     VideoCapture cap("../testvid.mp4");
-    if (!cap.isOpened()) 
+    if (!cap.isOpened())
     {
-    	cout << "Unable to read video file." << endl; 
-    	return -1; 
+    	cout << "Unable to read video file." << endl;
+    	return -1;
     }
 
     // start timer
@@ -83,7 +83,7 @@ int main()
         goodFeaturesToTrack(frameGray, corners, maxCorners, qualityLevel, minDist, mask, blockSize, false, 0.04);
 
         // compute optical flow after 2 sets of data is stored
-        if (!framePrev.empty()) 
+        if (!framePrev.empty())
         {
         	Mat framePrevGray;
         	cvtColor(framePrev, framePrevGray, COLOR_BGR2GRAY);
@@ -93,7 +93,7 @@ int main()
 
             // get matching features
             vector<Point2f> cornersPrevGood, cornersGood;
-            for (int i = 0; i < status.size(); i++) 
+            for (int i = 0; i < status.size(); i++)
             {
                 if ( status[i] ) {
                     cornersPrevGood.push_back(cornersPrev[i]);
@@ -116,7 +116,7 @@ int main()
             Mat v_over_d = H_no_omega*N;
 
             // draw matching features
-            for (int i = 0; i < status.size(); i++) 
+            for (int i = 0; i < status.size(); i++)
             {
                 circle(framePrev, cornersPrevGood[i], radius, circColor, thickness, LINE_AA);
                 line(framePrev, cornersPrevGood[i], cornersGood[i], lineColor, thickness, LINE_AA);

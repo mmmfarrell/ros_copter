@@ -16,10 +16,12 @@ mocapFilter::mocapFilter() :
   ros_copter::importMatrixFromParamServer(nh_private_, Q_, "Q0");
   ros_copter::importMatrixFromParamServer(nh_private_, R_IMU_, "R_IMU");
   ros_copter::importMatrixFromParamServer(nh_private_, R_Mocap_, "R_Mocap");
+  ros_copter::importMatrixFromParamServer(nh_private_, R_Flow_, "R_Flow");
 
   // Setup publishers and subscribers
   imu_sub_ = nh_.subscribe("imu/data", 1, &mocapFilter::imuCallback, this);
   mocap_sub_ = nh_.subscribe("mocap", 1, &mocapFilter::mocapCallback, this);
+  flow_sub_ = nh_.subscribe("flow", 1, &mocapFilter::flowCallback, this);
   estimate_pub_ = nh_.advertise<nav_msgs::Odometry>("estimate", 1);
   bias_pub_ = nh_.advertise<sensor_msgs::Imu>("estimate/bias", 1);
   is_flying_pub_ = nh_.advertise<std_msgs::Bool>("is_flying", 1);
@@ -76,6 +78,15 @@ void mocapFilter::mocapCallback(const geometry_msgs::TransformStamped msg)
   }
   return;
 }
+
+
+void mocapFilter::flowCallback(const geometry_msgs::Vector3 msg)
+{
+  if(flying_){
+    updateFLOW(msg);
+  }
+}
+
 
 void mocapFilter::initializeX(geometry_msgs::TransformStamped msg)
 {
@@ -165,6 +176,47 @@ void mocapFilter::updateMocap(geometry_msgs::TransformStamped msg)
   Eigen::Matrix<double, NUM_STATES, 6> L;
   L.setZero();
   L = P_*C.transpose()*(R_Mocap_ + C*P_*C.transpose()).inverse();
+  P_ = (Eigen::MatrixXd::Identity(NUM_STATES,NUM_STATES) - L*C)*P_;
+  x_hat_ = x_hat_ + L*(y - C*x_hat_);
+}
+
+
+void mocapFilter::updateFLOW(geometry_msgs::Vector3 msg)
+{
+  double u(x_hat_(U)), v(x_hat_(V)), w(x_hat_(W));
+  double p(gx_+x_hat_(BX)), q(gy_+x_hat_(BY)), r(gz_+x_hat_(BZ));
+  Eigen::Matrix<double, 3, 1> vel_arm_rot, omega;
+  vel_arm_rot << msg.x, msg.y, msg.z;
+  omega << p, q, r;
+
+  // camera location relative to CG in body coordinates
+  Eigen::Matrix<double, 3, 1> L_c;
+  L_c(0,0) = 0.1; // 3.75in
+  L_c(1,0) = 0.08; // 3.25in
+  L_c(2,0) = 0.04; // 1.5in
+
+  // remove camera arm rotational velocity
+  Eigen::Matrix<double, 3, 1> vel_rot;
+  vel_rot = vel_arm_rot - omega.cross(L_c);
+
+  // rotate camera image velocities from arm orientation to body coordinates
+  double alpha = 45.0*PI/180.0;
+  Eigen::Matrix<double, 3, 3> R_arm2body;
+  R_arm2body << cos(alpha), -sin(alpha), 0,
+                sin(alpha),  cos(alpha), 0,
+                0         ,  0         , 1 ;
+
+  Eigen::Matrix<double, 3, 1> y;
+  y = R_arm2body*vel_rot;
+
+  Eigen::Matrix<double, 3, NUM_STATES> C = Eigen::Matrix<double, 3, NUM_STATES>::Zero();
+  C(0,U) = 1.0;
+  C(1,V) = 1.0;
+  C(2,W) = 1.0;
+
+  Eigen::Matrix<double, NUM_STATES, 3> L;
+  L.setZero();
+  L = P_*C.transpose()*(R_Flow_ + C*P_*C.transpose()).inverse();
   P_ = (Eigen::MatrixXd::Identity(NUM_STATES,NUM_STATES) - L*C)*P_;
   x_hat_ = x_hat_ + L*(y - C*x_hat_);
 }
@@ -355,5 +407,3 @@ double mocapFilter::LPF(double yn, double un)
 
 
 } // namespace ekf
-
-
