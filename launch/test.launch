@@ -1,17 +1,24 @@
 <launch>
 
  <!-- Set non-default parameters -->
+ <rosparam subst_value="True">
+ mono_vo:          { max_corners: 200,
+                     parameter_filename: $(find ros_copter)/params/camera.yaml}
+</rosparam>
+
+  <!--VO-->
+  <node name="mono_vo" pkg="ros_copter"  type="mono_vo" output="screen"/>
 
  <!--Estimation-->
   <node name="ekf" pkg="ros_copter"  type="ekf" output="screen">
     <rosparam command="load" file="$(find ros_copter)/params/estimator.yaml" />
-    <remap from="mocap" to="/naze/CG"/> 
+    <!-- <remap from="mocap" to="/shredder/ground_truth/transform"/> -->
   </node>
-  
+  <!--
   <node name="record" pkg="rosbag" type="record" args="-O naze -a"/>
   <node name="play" pkg="rosbag" type="play" args="/home/iman/.ros/naze_balanced_props.bag -s 10 -u 35">
    <remap from="relative_state" to="transformed_mocap"/>
-  </node>
- 
+  </node> -->
+
 
 </launch>

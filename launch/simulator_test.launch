@@ -1,0 +1,32 @@
+<launch>
+
+ <!-- Set non-default parameters -->
+ <rosparam subst_value="True">
+ mono_vo:          { max_corners: 200,
+                     parameter_filename: $(find ros_copter)/params/simulator.yaml}
+</rosparam>
+
+  <!-- Simulator -->
+  <include file="$(find relative_nav)/launch/sim.launch"/>
+
+  <!-- Estimator -->
+  <node name="ekf" pkg="ros_copter" type="ekf">
+    <remap from="mocap" to="shredder/ground_truth/transform"/>
+    <remap from="imu/data" to="imu"/>
+    <remap from="is_flying" to="bleh"/>
+  </node>
+
+  <!-- Image Processing -->
+  <node name="image_proc" pkg="image_proc" type="image_proc">
+    <remap from="image_raw" to="shredder/camera/chase/rgb"/>
+  </node>
+
+  <!-- Image View -->
+  <node name="opt_flow_view" pkg="image_view" type="image_view">
+    <remap from="image" to="optical_flow"/>
+  </node>
+  <node name="mono_view" pkg="image_view" type="image_view">
+    <remap from="image" to="image_mono"/>
+  </node>
+
+</launch>

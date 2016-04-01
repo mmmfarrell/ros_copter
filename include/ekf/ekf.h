@@ -8,7 +8,9 @@
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/Dense>
 #include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <nav_msgs/Odometry.h>
+#include <sensor_msgs/Range.h>
 #include <tf/tf.h>
 #include <deque>
 #include <lib/eigen.h>
@@ -39,12 +41,12 @@
 namespace ekf
 {
 
-class mocapFilter
+class EKF
 {
 
 public:
 
-  mocapFilter();
+  EKF();
 
 private:
 
@@ -56,9 +58,12 @@ private:
   ros::Subscriber mocap_sub_;
   ros::Subscriber imu_sub_;
   ros::Subscriber flow_sub_;
+  ros::Subscriber alt_sub_;
+
   ros::Publisher estimate_pub_;
   ros::Publisher bias_pub_;
   ros::Publisher is_flying_pub_;
+
   ros::Timer predict_timer_;
   ros::Timer publish_timer_;
 
@@ -77,6 +82,9 @@ private:
   Eigen::Matrix<double, 3, 3> R_IMU_;
   Eigen::Matrix<double, 6, 6> R_Mocap_;
   Eigen::Matrix<double, 3, 3> R_Flow_;
+  Eigen::Matrix<double, 1, 1> R_Altimeter_;
+
+  Eigen::Matrix<double, 6, 1> TF_camera_to_body_;
 
   Eigen::Matrix<double, NUM_STATES, NUM_STATES> Q_;
   Eigen::Matrix<double, NUM_STATES, NUM_STATES> P_;
@@ -87,16 +95,21 @@ private:
   double gx_, gy_, gz_, az_, ax_, ay_;
   double alpha_;
   bool flying_;
+  bool start_flying_;
 
   // Functions
   void mocapCallback(const geometry_msgs::TransformStamped msg);
   void imuCallback(const sensor_msgs::Imu msg);
-  void flowCallback(const geometry_msgs::Vector3 msg);
+  void flowCallback(const geometry_msgs::Vector3Stamped msg);
+  void altCallback(const sensor_msgs::Range msg);
   void predictStep();
+
   void updateStep();
   void updateIMU(sensor_msgs::Imu msg);
   void updateMocap(geometry_msgs::TransformStamped msg);
-  void updateFLOW(geometry_msgs::Vector3 msg);
+  void updateFLOW(geometry_msgs::Vector3Stamped msg);
+  void updateAlt(sensor_msgs::Range msg);
+
   void initializeX(geometry_msgs::TransformStamped msg);
   void predictTimerCallback(const ros::TimerEvent& event);
   void publishTimerCallback(const ros::TimerEvent& event);

@@ -6,7 +6,7 @@
 
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Image.h>
-#include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Vector3Stamped.h>
 
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/highgui/highgui.hpp>
@@ -70,10 +70,11 @@ private:
     int radius;
     int thickness;
   }LC_params_;
+  bool publish_image_;
 
   // Class Variables (for memory between loops and functions)
   nav_msgs::Odometry current_state_;
-  geometry_msgs::Vector3 velocity_measurement_;
+  geometry_msgs::Vector3Stamped velocity_measurement_;
   Mat prev_src_, optical_flow_velocity_, N_;
   vector<Point2f> points_[2], undistort_points_[2];
   bool no_normal_estimate_;

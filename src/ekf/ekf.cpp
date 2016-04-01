@@ -1,9 +1,11 @@
 #include "ekf/ekf.h"
 
+using namespace std;
+
 namespace ekf
 {
 
-mocapFilter::mocapFilter() :
+EKF::EKF() :
   nh_(ros::NodeHandle()),
   nh_private_(ros::NodeHandle("~/ekf"))
 {
@@ -11,36 +13,41 @@ mocapFilter::mocapFilter() :
   nh_private_.param<double>("inner_loop_rate", inner_loop_rate_, 400);
   nh_private_.param<double>("publish_rate", publish_rate_, 400);
   nh_private_.param<double>("alpha", alpha_, 0.2);
+  nh_private_.param<bool>("start_flying", start_flying_, true);
   ros_copter::importMatrixFromParamServer(nh_private_, x_hat_, "x0");
   ros_copter::importMatrixFromParamServer(nh_private_, P_, "P0");
   ros_copter::importMatrixFromParamServer(nh_private_, Q_, "Q0");
   ros_copter::importMatrixFromParamServer(nh_private_, R_IMU_, "R_IMU");
   ros_copter::importMatrixFromParamServer(nh_private_, R_Mocap_, "R_Mocap");
   ros_copter::importMatrixFromParamServer(nh_private_, R_Flow_, "R_Flow");
+  ros_copter::importMatrixFromParamServer(nh_private_, R_Altimeter_, "R_Altimeter");
+  ros_copter::importMatrixFromParamServer(nh_private_, TF_camera_to_body_, "TF_camera_to_body");
 
   // Setup publishers and subscribers
-  imu_sub_ = nh_.subscribe("imu/data", 1, &mocapFilter::imuCallback, this);
-  mocap_sub_ = nh_.subscribe("mocap", 1, &mocapFilter::mocapCallback, this);
-  flow_sub_ = nh_.subscribe("flow", 1, &mocapFilter::flowCallback, this);
+  imu_sub_ = nh_.subscribe("imu", 1, &EKF::imuCallback, this);
+  mocap_sub_ = nh_.subscribe("mocap", 1, &EKF::mocapCallback, this);
+  flow_sub_ = nh_.subscribe("flow", 1, &EKF::flowCallback, this);
+  alt_sub_ = nh_.subscribe("altimeter", 1, &EKF::altCallback, this);
+
   estimate_pub_ = nh_.advertise<nav_msgs::Odometry>("estimate", 1);
   bias_pub_ = nh_.advertise<sensor_msgs::Imu>("estimate/bias", 1);
-  is_flying_pub_ = nh_.advertise<std_msgs::Bool>("is_flying", 1);
-  predict_timer_ = nh_.createTimer(ros::Duration(1.0/inner_loop_rate_), &mocapFilter::predictTimerCallback, this);
-  publish_timer_ = nh_.createTimer(ros::Duration(1.0/publish_rate_), &mocapFilter::publishTimerCallback, this);
+  is_flying_pub_ = nh_.advertise<std_msgs::Bool>("bleh", 1);
+
+  predict_timer_ = nh_.createTimer(ros::Duration(1.0/inner_loop_rate_), &EKF::predictTimerCallback, this);
+  publish_timer_ = nh_.createTimer(ros::Duration(1.0/publish_rate_), &EKF::publishTimerCallback, this);
 
   x_hat_.setZero();
   flying_ = false;
-  ROS_INFO("Done");
   return;
 }
 
-void mocapFilter::publishTimerCallback(const ros::TimerEvent &event)
+void EKF::publishTimerCallback(const ros::TimerEvent &event)
 {
   publishEstimate();
   return;
 }
 
-void mocapFilter::predictTimerCallback(const ros::TimerEvent &event)
+void EKF::predictTimerCallback(const ros::TimerEvent &event)
 {
   if(flying_){
     predictStep();
@@ -49,10 +56,10 @@ void mocapFilter::predictTimerCallback(const ros::TimerEvent &event)
 }
 
 
-void mocapFilter::imuCallback(const sensor_msgs::Imu msg)
+void EKF::imuCallback(const sensor_msgs::Imu msg)
 {
   if(!flying_){
-    if(fabs(msg.linear_acceleration.z) > 11.0){
+    if(fabs(msg.linear_acceleration.z) > 11.0 || start_flying_){
       ROS_WARN("Now flying");
       flying_ = true;
       std_msgs::Bool flying;
@@ -60,15 +67,20 @@ void mocapFilter::imuCallback(const sensor_msgs::Imu msg)
       is_flying_pub_.publish(flying);
       previous_predict_time_ = ros::Time::now();
     }
-  }
-  if(flying_){
+  }else{
     updateIMU(msg);
   }
   return;
 }
 
+void EKF::altCallback(const sensor_msgs::Range msg){
+  if(flying_){
+    updateAlt(msg);
+  }
+}
 
-void mocapFilter::mocapCallback(const geometry_msgs::TransformStamped msg)
+
+void EKF::mocapCallback(const geometry_msgs::TransformStamped msg)
 {
   if(!flying_){
     ROS_INFO_THROTTLE(1,"Not flying, but motion capture received, estimate is copy of mocap");
@@ -80,7 +92,7 @@ void mocapFilter::mocapCallback(const geometry_msgs::TransformStamped msg)
 }
 
 
-void mocapFilter::flowCallback(const geometry_msgs::Vector3 msg)
+void EKF::flowCallback(const geometry_msgs::Vector3Stamped msg)
 {
   if(flying_){
     updateFLOW(msg);
@@ -88,9 +100,8 @@ void mocapFilter::flowCallback(const geometry_msgs::Vector3 msg)
 }
 
 
-void mocapFilter::initializeX(geometry_msgs::TransformStamped msg)
+void EKF::initializeX(geometry_msgs::TransformStamped msg)
 {
-  ROS_INFO_ONCE("ekf initialized");
   tf::Transform measurement;
   double roll, pitch, yaw;
   tf::transformMsgToTF(msg.transform, measurement);
@@ -105,7 +116,7 @@ void mocapFilter::initializeX(geometry_msgs::TransformStamped msg)
 }
 
 
-void mocapFilter::predictStep()
+void EKF::predictStep()
 {
   ros::Time now = ros::Time::now();
   double dt = (now-previous_predict_time_).toSec();
@@ -117,7 +128,7 @@ void mocapFilter::predictStep()
 }
 
 
-void mocapFilter::updateIMU(sensor_msgs::Imu msg)
+void EKF::updateIMU(sensor_msgs::Imu msg)
 {
   double phi(x_hat_(PHI)), theta(x_hat_(THETA)), psi(x_hat_(PSI));
   double alpha_x(x_hat_(AX)), alpha_y(x_hat_(AY)), alpha_z(x_hat_(AZ));
@@ -155,7 +166,7 @@ void mocapFilter::updateIMU(sensor_msgs::Imu msg)
   x_hat_ = x_hat_ + L*(y - C*x_hat_);
 }
 
-void mocapFilter::updateMocap(geometry_msgs::TransformStamped msg)
+void EKF::updateMocap(geometry_msgs::TransformStamped msg)
 {
   tf::Transform measurement;
   double roll, pitch, yaw;
@@ -181,26 +192,29 @@ void mocapFilter::updateMocap(geometry_msgs::TransformStamped msg)
 }
 
 
-void mocapFilter::updateFLOW(geometry_msgs::Vector3 msg)
+void EKF::updateFLOW(geometry_msgs::Vector3Stamped msg)
 {
+//  ROS_INFO("flow");
   double u(x_hat_(U)), v(x_hat_(V)), w(x_hat_(W));
   double p(gx_+x_hat_(BX)), q(gy_+x_hat_(BY)), r(gz_+x_hat_(BZ));
+  double pd(x_hat_(PD));
   Eigen::Matrix<double, 3, 1> vel_arm_rot, omega;
-  vel_arm_rot << msg.x, msg.y, msg.z;
+  vel_arm_rot << msg.vector.x, msg.vector.y, msg.vector.z;
   omega << p, q, r;
 
   // camera location relative to CG in body coordinates
+
   Eigen::Matrix<double, 3, 1> L_c;
-  L_c(0,0) = 0.1; // 3.75in
-  L_c(1,0) = 0.08; // 3.25in
-  L_c(2,0) = 0.04; // 1.5in
+  L_c(0,0) = TF_camera_to_body_(0,0);// 0.1; // 3.75in
+  L_c(1,0) = TF_camera_to_body_(1,0);//0.08; // 3.25in
+  L_c(2,0) = TF_camera_to_body_(2,0);//0.04; // 1.5in
 
   // remove camera arm rotational velocity
   Eigen::Matrix<double, 3, 1> vel_rot;
-  vel_rot = vel_arm_rot - omega.cross(L_c);
+  vel_rot = (vel_arm_rot - omega.cross(L_c))*(-pd+L_c(2,0));
 
   // rotate camera image velocities from arm orientation to body coordinates
-  double alpha = 45.0*PI/180.0;
+  double alpha = TF_camera_to_body_(5,0);
   Eigen::Matrix<double, 3, 3> R_arm2body;
   R_arm2body << cos(alpha), -sin(alpha), 0,
                 sin(alpha),  cos(alpha), 0,
@@ -222,7 +236,21 @@ void mocapFilter::updateFLOW(geometry_msgs::Vector3 msg)
 }
 
 
-Eigen::Matrix<double, NUM_STATES, 1> mocapFilter::f(const Eigen::Matrix<double, NUM_STATES, 1> x)
+void EKF::updateAlt(sensor_msgs::Range msg)
+{
+  double y = msg.range;
+  Eigen::Matrix<double, 1, NUM_STATES> C = Eigen::Matrix<double, 1, NUM_STATES>::Zero();
+  C(0,PD) = -1.0;
+
+  Eigen::Matrix<double, NUM_STATES, 1> L;
+  L.setZero();
+  L = P_*C.transpose()*(R_Altimeter_ + C*P_*C.transpose()).inverse();
+  P_ = (Eigen::MatrixXd::Identity(NUM_STATES,NUM_STATES) - L*C)*P_;
+  x_hat_ = x_hat_ + L*(y - C*x_hat_);
+}
+
+
+Eigen::Matrix<double, NUM_STATES, 1> EKF::f(const Eigen::Matrix<double, NUM_STATES, 1> x)
 {
   double u(x(U)), v(x(V)), w(x(W));
   double phi(x(PHI)), theta(x(THETA)), psi(x(PSI));
@@ -258,7 +286,7 @@ Eigen::Matrix<double, NUM_STATES, 1> mocapFilter::f(const Eigen::Matrix<double, 
 
 
 
-Eigen::Matrix<double, NUM_STATES, NUM_STATES> mocapFilter::dfdx(const Eigen::Matrix<double, NUM_STATES, 1> x)
+Eigen::Matrix<double, NUM_STATES, NUM_STATES> EKF::dfdx(const Eigen::Matrix<double, NUM_STATES, 1> x)
 {
   double u(x(U)), v(x(V)), w(x(W));
   double phi(x(PHI)), theta(x(THETA)), psi(x(PSI));
@@ -335,7 +363,7 @@ Eigen::Matrix<double, NUM_STATES, NUM_STATES> mocapFilter::dfdx(const Eigen::Mat
   return A;
 }
 
-void mocapFilter::publishEstimate()
+void EKF::publishEstimate()
 {
   nav_msgs::Odometry estimate;
   double pn(x_hat_(PN)), pe(x_hat_(PE)), pd(x_hat_(PD));
@@ -395,11 +423,11 @@ void mocapFilter::publishEstimate()
 
   bias_pub_.publish(bias);
   double ax(x_hat_(AX)), ay(x_hat_(AY)),az(x_hat_(AZ));
-  ROS_INFO_STREAM("ax: " << ax << " ay:" << ay << " az: " << az << " bx: " << bx << " by: " << by << " bz: " << bz);
+//  ROS_INFO_STREAM("ax: " << ax << " ay:" << ay << " az: " << az << " bx: " << bx << " by: " << by << " bz: " << bz);
 }
 
 
-double mocapFilter::LPF(double yn, double un)
+double EKF::LPF(double yn, double un)
 {
   return alpha_*yn+(1-alpha_)*un;
 }
