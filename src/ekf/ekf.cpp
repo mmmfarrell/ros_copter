@@ -20,11 +20,13 @@ mocapFilter::mocapFilter() :
   ros_copter::importMatrixFromParamServer(nh_private_, R_IMU_, "R_IMU");
   ros_copter::importMatrixFromParamServer(nh_private_, R_Mocap_, "R_Mocap");
   ros_copter::importMatrixFromParamServer(nh_private_, R_GPS_, "R_GPS");
+  ros_copter::importMatrixFromParamServer(nh_private_, R_Mag_, "R_Mag");
 
   // Setup publishers and subscribers
   imu_sub_ = nh_.subscribe("imu/data", 1, &mocapFilter::imuCallback, this);
   mocap_sub_ = nh_.subscribe("mocap", 1, &mocapFilter::mocapCallback, this);
   gps_sub_ = nh_.subscribe("gps/data", 1, &mocapFilter::gpsCallback, this);
+  mag_sub_ = nh_.subscribe("???", 1, &mocapFilter::magCallback, this);
   estimate_pub_ = nh_.advertise<nav_msgs::Odometry>("estimate", 1);
   bias_pub_ = nh_.advertise<sensor_msgs::Imu>("estimate/bias", 1);
   is_flying_pub_ = nh_.advertise<std_msgs::Bool>("is_flying", 1);
@@ -99,6 +101,14 @@ void mocapFilter::gpsCallback(const fcu_common::GPS msg)
     if(msg.fix){
       updateGPS(msg);
     }
+  }
+}
+
+void mocapFilter::magCallback(const sensor_msgs::MagneticField msg)
+{
+  if(!flying_){
+  }else{
+      updateMag(msg);
   }
 }
 
@@ -197,7 +207,7 @@ void mocapFilter::updateMocap(geometry_msgs::TransformStamped msg)
 
 void mocapFilter::updateGPS(fcu_common::GPS msg)
 {
-  ROS_INFO_STREAM("Update GPS");
+  //ROS_INFO_STREAM("Update GPS");
 
   static bool first_time = true;
   if(first_time)
@@ -246,6 +256,44 @@ void mocapFilter::updateGPS(fcu_common::GPS msg)
 
 //  C(4,U) = -v/(u*u+v*v);
 //  C(4,V) = u/(u*u+v*v);
+
+  Eigen::Matrix<double, NUM_STATES, 3> L;
+  L.setZero();
+  L = P_*C.transpose()*(R_GPS_ + C*P_*C.transpose()).inverse();
+  P_ = (Eigen::MatrixXd::Identity(NUM_STATES,NUM_STATES) - L*C)*P_;
+  x_hat_ = x_hat_ + L*(y - C*x_hat_);
+  ROS_INFO("x = %0.02f\n", x_hat_(PN));
+}
+
+void mocapFilter::updateMag(sensor_msgs::MagneticField msg)
+{
+  //ROS_INFO_STREAM("Update GPS");
+  double phi(x_hat_(PHI)), theta(x_hat_(THETA)), psi(x_hat_(PSI));
+  double ct = cos(theta);
+  double cp = cos(phi);
+  double cs = cos(psi);
+  double st = sin(theta);
+  double sp = sin(phi);
+  double ss = sin(psi);
+  mx_ = msg.magnetic_field.x;
+  my_ = msg.magnetic_field.y;
+  mz_ = msg.magnetic_field.z;
+
+  Eigen::Matrix<double, 3, 1> y;
+  y << mx_,my_,mz_;
+
+  Eigen::Matrix<double, 3, NUM_STATES> C;
+  C.setZero();
+  C(0,PHI) = ay*(cp*st*cs + sp*ss) + az*(-sp*st*cs + cp*ss);
+  C(0,THETA) = -ax*st*cs + ay*sp*ct*cs + az*cp*ct*cs;
+  C(0,PSI) = -ax*ct*ss + ay*(-cp*cs -sp*st*ss) + az*(sp*cs - cp*st*ss);
+
+  C(1,PHI) = ay*(-sp*cs + cp*st*ss) + az*(sp*cs - cp*st*ss);
+  C(1,THETA) = -ax*st*ss + ay*sp*ct*ss + az*cp*ct*ss;
+  C(1,PSI) = ax*ct*cs + ay*(sp*st*cs - cp*ss) + az*(cp*st*cs + sp*ss);
+
+  C(2,PHI) = ay*cp*ct - az*sp*ct;
+  C(2,THETA) = -ax*ct - ay*sp*st + az*cp*st;
 
   Eigen::Matrix<double, NUM_STATES, 3> L;
   L.setZero();

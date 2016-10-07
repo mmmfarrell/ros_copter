@@ -275,24 +275,55 @@ and
 
 
 \section{Magnetometer Measurements}
-Magnetometer is used to update the orientation states of the filter based on the known vector for the magnetic field in global coordinates
+Magnetometer is used to update the orientation states of the filter based on the the magnetic field in the global frame
 \begin{equation}
-  a = \begin{pmatrix}
-  a_x \\
-  a_y \\
-  a_z \end{pmatrix}
+  b = \begin{pmatrix}
+  b_x \\
+  b_y \\
+  b_z \end{pmatrix}
 \end{equation}
 
-The measurements (in robocentric coordinates) are functions of the known magnetic field and phi, theta, and psi
+The measured magnetic field is the global magnetic field rotated into the robot frame
 \begin{equation}
+\makebox[\textwidth][c]{$
+	h(x,u) = \begin{pmatrix}
+	m_x \\
+	m_y \\
+	m_z \end{pmatrix}
+  = R_\psi R_\theta R_\phi b
+  = \begin{pmatrix}
+  \cs   & -\sis & 0     \\
+  \sis  & \cs   & 0    \\
+  0     & 0     & 1
+  \end{pmatrix}
+  \begin{pmatrix}
+  \ct   & 0     & \sit  \\
+  0     & 1     & 0     \\
+  -\sit & 0     & \ct
+  \end{pmatrix}
+  \begin{pmatrix}
+  1     & 0     & 0     \\
+  0     & \cp   & -\sip \\
+  0     & \sip  & \cp
+  \end{pmatrix}
+  \begin{pmatrix}
+  b_x \\
+  b_y \\
+  b_z \end{pmatrix}
+  $}
+\end{equation}
+
+\begin{equation}
+\makebox[\textwidth][c]{$
 	h(x,u) = \begin{pmatrix}
 	m_x \\
 	m_y \\
 	m_z \end{pmatrix}
   = \begin{pmatrix}
-	a_x\ct\cs + a_y(\sip\sit\cs - \cp\sis) + a_z(\cp\sit\cs + \sip\sis) \\
-	a_x\ct\sis + a_y(\sip\sit\sis + \cp\cs) + a_z(\cp\sit\sis - \sip\cs) \\
-	-a_x\sit + a_y\sip\ct + a_z\cp\ct \end{pmatrix}
+	b_x\ct\cs + b_y(\sip\sit\cs - \cp\sis) + b_z(\cp\sit\cs + \sip\sis) \\
+	b_x\ct\sis + b_y(\sip\sit\sis + \cp\cs) + b_z(\cp\sit\sis - \sip\cs) \\
+	-b_x\sit + b_y\sip\ct + b_z\cp\ct \end{pmatrix}
+  $}
 \end{equation}
 
 Therefore
@@ -308,14 +339,14 @@ Therefore
 with
 \begin{equation}
 	\begin{aligned}
-		C_{06} &= a_y(\cp\sit\cs + \sip\sis) + a_z(-\sip\sit\cs + \cp\sis) \\
-		C_{07} &= -a_x\sit\cs + a_y\sip\ct\cs + a_z\cp\ct\cs \\
-		C_{08} &= -a_x\ct\sis + a_y(-\cp\cs - \sip\sit\sis) + a_z(\sip\cs - \cp\sit\sis) \\
-		C_{16} &= a_y(-\sip\cs + \cp\sit\sis) + a_z(-\cp\cs - \sip\sit\sis) \\
-		C_{17} &= -a_x\sit\sis + a_y\sip\ct\sis + a_z\cp\ct\sis \\
-		C_{18} &= a_x\ct\cs + a_y(\sip\sit\cs - \cp\sis) + a_z(\cp\sit\cs + \sip\sis) \\
-		C_{26} &= a_y\cp\ct - a_z\sip\ct \\
-		C_{27} &= -a_x\ct - a_y\sip\sit - a_z\cp\sit \\
+		C_{06} &= b_y(\cp\sit\cs + \sip\sis) + b_z(-\sip\sit\cs + \cp\sis) \\
+		C_{07} &= -b_x\sit\cs + b_y\sip\ct\cs + b_z\cp\ct\cs \\
+		C_{08} &= -b_x\ct\sis + b_y(-\cp\cs - \sip\sit\sis) + b_z(\sip\cs - \cp\sit\sis) \\
+		C_{16} &= b_y(-\sip\cs + \cp\sit\sis) + b_z(-\cp\cs - \sip\sit\sis) \\
+		C_{17} &= -b_x\sit\sis + b_y\sip\ct\sis + b_z\cp\ct\sis \\
+		C_{18} &= b_x\ct\cs + b_y(\sip\sit\cs - \cp\sis) + b_z(\cp\sit\cs + \sip\sis) \\
+		C_{26} &= b_y\cp\ct - b_z\sip\ct \\
+		C_{27} &= -b_x\ct - b_y\sip\sit - b_z\cp\sit \\
   \end{aligned}
 \end{equation}
 
