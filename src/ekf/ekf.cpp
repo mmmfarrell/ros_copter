@@ -267,7 +267,22 @@ void mocapFilter::updateGPS(fcu_common::GPS msg)
 
 void mocapFilter::updateMag(sensor_msgs::MagneticField msg)
 {
-  //ROS_INFO_STREAM("Update GPS");
+  static bool first_time = true;
+  if(first_time)
+  {
+      if(gps_count_ > 0){
+        ROS_INFO_THROTTLE(1,"Magnetometer online");
+        first_time = false;
+        MAGtype_GeoMagneticElements mag = init_magnetic_field(lat0_,lon0_,alt0_);
+        bx = mag.X;
+        by = -mag.Y;
+        bz = -mag.Z;
+      }
+      else{
+          ROS_INFO_THROTTLE(1,"Waiting for GPS to determine local magnetic field");
+      }
+  }
+
   double phi(x_hat_(PHI)), theta(x_hat_(THETA)), psi(x_hat_(PSI));
   double ct = cos(theta);
   double cp = cos(phi);
@@ -284,16 +299,16 @@ void mocapFilter::updateMag(sensor_msgs::MagneticField msg)
 
   Eigen::Matrix<double, 3, NUM_STATES> C;
   C.setZero();
-  C(0,PHI) = ay*(cp*st*cs + sp*ss) + az*(-sp*st*cs + cp*ss);
-  C(0,THETA) = -ax*st*cs + ay*sp*ct*cs + az*cp*ct*cs;
-  C(0,PSI) = -ax*ct*ss + ay*(-cp*cs -sp*st*ss) + az*(sp*cs - cp*st*ss);
+  C(0,PHI)   =             by*(cp*st*cs + sp*ss)  + bz*(-sp*st*cs + cp*ss);
+  C(0,THETA) = -bx*st*cs + by*sp*ct*cs            + bz*cp*ct*cs;
+  C(0,PSI)   = -bx*ct*ss + by*(-cp*cs -sp*st*ss)  + bz*(sp*cs - cp*st*ss);
 
-  C(1,PHI) = ay*(-sp*cs + cp*st*ss) + az*(sp*cs - cp*st*ss);
-  C(1,THETA) = -ax*st*ss + ay*sp*ct*ss + az*cp*ct*ss;
-  C(1,PSI) = ax*ct*cs + ay*(sp*st*cs - cp*ss) + az*(cp*st*cs + sp*ss);
+  C(1,PHI)   =             by*(-sp*cs + cp*st*ss) + bz*(sp*cs - cp*st*ss);
+  C(1,THETA) = -bx*st*ss + by*sp*ct*ss            + bz*cp*ct*ss;
+  C(1,PSI)   =  bx*ct*cs + by*(sp*st*cs - cp*ss)  + bz*(cp*st*cs + sp*ss);
 
-  C(2,PHI) = ay*cp*ct - az*sp*ct;
-  C(2,THETA) = -ax*ct - ay*sp*st + az*cp*st;
+  C(2,PHI)   =             by*cp*ct               - bz*sp*ct;
+  C(2,THETA) = -bx*ct    - by*sp*st               + bz*cp*st;
 
   Eigen::Matrix<double, NUM_STATES, 3> L;
   L.setZero();
@@ -301,6 +316,52 @@ void mocapFilter::updateMag(sensor_msgs::MagneticField msg)
   P_ = (Eigen::MatrixXd::Identity(NUM_STATES,NUM_STATES) - L*C)*P_;
   x_hat_ = x_hat_ + L*(y - C*x_hat_);
   ROS_INFO("x = %0.02f\n", x_hat_(PN));
+}
+
+MAGtype_GeoMagneticElements mocapFilter::init_magnetic_field(double lat, double lon, double alt){
+    MAGtype_MagneticModel * MagneticModels[1], *TimedMagneticModel;
+    MAGtype_Ellipsoid Ellip;
+    MAGtype_CoordSpherical CoordSpherical;
+    MAGtype_CoordGeodetic CoordGeodetic;
+    MAGtype_Date UserDate;
+    MAGtype_GeoMagneticElements GeoMagneticElements;
+    MAGtype_Geoid Geoid;
+    char* filename = "WMM.COF";
+    int NumTerms, nMax = 0;
+    int epochs = 1;
+
+    MAG_robustReadMagModels(filename, &MagneticModels, epochs);
+
+    /* Memory allocation */
+    if(nMax < MagneticModels[0]->nMax) nMax = MagneticModels[0]->nMax;
+    NumTerms = ((nMax + 1) * (nMax + 2) / 2);
+    TimedMagneticModel = MAG_AllocateModelMemory(NumTerms); /* For storing the time modified WMM Model parameters */
+    if(MagneticModels[0] == NULL || TimedMagneticModel == NULL)
+    {
+        MAG_Error(2);
+    }
+
+    MAG_SetDefaults(&Ellip, &Geoid); /* Set default values and constants */
+
+    CoordGeodetic.phi = lat;
+    CoordGeodetic.lambda = lon;
+    CoordGeodetic.HeightAboveGeoid = alt/1000;
+    MAG_ConvertGeoidToEllipsoidHeight(&CoordGeodetic, &Geoid);
+    time_t t = time(0);
+    struct tm * now = localtime( & t );
+    UserDate.Year = now->tm_year + 1900;
+    UserDate.Month = now->tm_mon + 1;
+    UserDate.Day = now->tm_mday;
+
+    MAG_GeodeticToSpherical(Ellip, CoordGeodetic, &CoordSpherical); /*Convert from geodetic to Spherical Equations: 17-18, WMM Technical report*/
+    MAG_TimelyModifyMagneticModel(UserDate, MagneticModels[0], TimedMagneticModel); /* Time adjust the coefficients, Equation 19, WMM Technical report */
+    MAG_Geomag(Ellip, CoordSpherical, CoordGeodetic, TimedMagneticModel, &GeoMagneticElements); /* Computes the geoMagnetic field elements and their time change*/
+    MAG_CalculateGridVariation(CoordGeodetic, &GeoMagneticElements);
+
+    MAG_FreeMagneticModelMemory(TimedMagneticModel);
+    MAG_FreeMagneticModelMemory(MagneticModels[0]);
+
+    return GeoMagneticElements;
 }
 
 

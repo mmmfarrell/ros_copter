@@ -19,7 +19,6 @@ generate_dynamic_reconfigure_options(
   cfg/Controller.cfg
 )
 
-
 set(CMAKE_CXX_FLAGS "-std=c++0x")
 
 add_message_files(
@@ -67,6 +66,10 @@ add_executable(ekf
   src/ekf/ekf_node.cpp
   src/ekf/ekf.cpp
   include/ekf/ekf.h
+  include/geomag/Geomagnetism.h
+  src/geomag/Geomagnetism.cpp
+  include/geomag/EGM9615.h
+  include/geomag/WMM.COF
 )
 add_dependencies(ekf ros_copter_generate_messages_cpp fcu_common_generate_messages_cpp)
 target_link_libraries(ekf ${catkin_LIBRARIES})

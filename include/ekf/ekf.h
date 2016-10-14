@@ -15,6 +15,8 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <fcu_common/GPS.h>
 #include <sensor_msgs/MagneticField.h>
+#include <geomag/Geomagnetism.h>
+#include <ctime>
 
 // state numbers
 #define PN 0
@@ -90,7 +92,7 @@ private:
   double gx_, gy_, gz_, az_, ax_, ay_;
   double lat_, lon_, alt_, vg_, chi_;
   double lat0_, lon0_, alt0_, gps_count_;
-  double mx_, my_, mz_;
+  double mx_, my_, mz_, bx, by, bz;
   double alpha_;
   bool flying_;
 
@@ -105,6 +107,7 @@ private:
   void updateMocap(geometry_msgs::TransformStamped msg);
   void updateGPS(fcu_common::GPS msg);
   void updateMag(sensor_msgs::MagneticField msg);
+  MAGtype_GeoMagneticElements init_magnetic_field(double lat, double lon, double alt);
   void initializeX(geometry_msgs::TransformStamped msg);
   void predictTimerCallback(const ros::TimerEvent& event);
   void publishTimerCallback(const ros::TimerEvent& event);
