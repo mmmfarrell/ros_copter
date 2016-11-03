@@ -26,7 +26,7 @@ mocapFilter::mocapFilter() :
   imu_sub_ = nh_.subscribe("imu/data", 1, &mocapFilter::imuCallback, this);
   mocap_sub_ = nh_.subscribe("mocap", 1, &mocapFilter::mocapCallback, this);
   gps_sub_ = nh_.subscribe("gps/data", 1, &mocapFilter::gpsCallback, this);
-  mag_sub_ = nh_.subscribe("???", 1, &mocapFilter::magCallback, this);
+  mag_sub_ = nh_.subscribe("shredder/mag/data", 1, &mocapFilter::magCallback, this);
   estimate_pub_ = nh_.advertise<nav_msgs::Odometry>("estimate", 1);
   bias_pub_ = nh_.advertise<sensor_msgs::Imu>("estimate/bias", 1);
   is_flying_pub_ = nh_.advertise<std_msgs::Bool>("is_flying", 1);
@@ -106,8 +106,7 @@ void mocapFilter::gpsCallback(const fcu_common::GPS msg)
 
 void mocapFilter::magCallback(const sensor_msgs::MagneticField msg)
 {
-  if(!flying_){
-  }else{
+  if(gps_recieved){
       updateMag(msg);
   }
 }
@@ -222,6 +221,7 @@ void mocapFilter::updateGPS(fcu_common::GPS msg)
       return;
     }
   }
+  gps_recieved = true;
 
   double u = x_hat_(U);
   double v = x_hat_(V);
@@ -240,8 +240,8 @@ void mocapFilter::updateGPS(fcu_common::GPS msg)
   Eigen::Matrix<double, 3, 1> y;
   y << dx, dy, -(alt_ - alt0_);//, vg_, chi_;
 
-  cout << "y = " << y << endl;
-  cout << "dlat = " << dlat << " dlon = " << dlon << endl;
+//  cout << "y = " << y << endl;
+//  cout << "dlat = " << dlat << " dlon = " << dlon << endl;
 
   Eigen::Matrix<double, 3, NUM_STATES> C;
   C.setZero();
@@ -262,7 +262,7 @@ void mocapFilter::updateGPS(fcu_common::GPS msg)
   L = P_*C.transpose()*(R_GPS_ + C*P_*C.transpose()).inverse();
   P_ = (Eigen::MatrixXd::Identity(NUM_STATES,NUM_STATES) - L*C)*P_;
   x_hat_ = x_hat_ + L*(y - C*x_hat_);
-  ROS_INFO("x = %0.02f\n", x_hat_(PN));
+//  ROS_INFO("x = %0.02f\n", x_hat_(PN));
 }
 
 void mocapFilter::updateMag(sensor_msgs::MagneticField msg)
@@ -270,13 +270,17 @@ void mocapFilter::updateMag(sensor_msgs::MagneticField msg)
   static bool first_time = true;
   if(first_time)
   {
-      if(gps_count_ > 0){
+      if(gps_recieved){
         ROS_INFO_THROTTLE(1,"Magnetometer online");
         first_time = false;
-        MAGtype_GeoMagneticElements mag = init_magnetic_field(lat0_,lon0_,alt0_);
-        bx = mag.X;
-        by = -mag.Y;
-        bz = -mag.Z;
+        bx = .406569;
+        by = .0818167;
+        bz = .909949;
+//        MAGtype_GeoMagneticElements mag = init_magnetic_field(lat0_,lon0_,alt0_);
+//        bx = mag.X;
+//        by = -mag.Y;
+//        bz = -mag.Z;
+        cout << endl << "magnetic field" << endl << bx << endl << by << endl << bz << endl << endl;
       }
       else{
           ROS_INFO_THROTTLE(1,"Waiting for GPS to determine local magnetic field");
@@ -296,6 +300,7 @@ void mocapFilter::updateMag(sensor_msgs::MagneticField msg)
 
   Eigen::Matrix<double, 3, 1> y;
   y << mx_,my_,mz_;
+    cout << "y = " << y << endl;
 
   Eigen::Matrix<double, 3, NUM_STATES> C;
   C.setZero();
@@ -312,10 +317,11 @@ void mocapFilter::updateMag(sensor_msgs::MagneticField msg)
 
   Eigen::Matrix<double, NUM_STATES, 3> L;
   L.setZero();
-  L = P_*C.transpose()*(R_GPS_ + C*P_*C.transpose()).inverse();
+  L = P_*C.transpose()*(R_Mag_ + C*P_*C.transpose()).inverse();
   P_ = (Eigen::MatrixXd::Identity(NUM_STATES,NUM_STATES) - L*C)*P_;
+  cout << C*x_hat_ << endl;
   x_hat_ = x_hat_ + L*(y - C*x_hat_);
-  ROS_INFO("x = %0.02f\n", x_hat_(PN));
+  ROS_INFO("x = %e, %e, %e\n", x_hat_(PHI), x_hat_(THETA), x_hat_(PSI));
 }
 
 MAGtype_GeoMagneticElements mocapFilter::init_magnetic_field(double lat, double lon, double alt){
@@ -336,12 +342,14 @@ MAGtype_GeoMagneticElements mocapFilter::init_magnetic_field(double lat, double 
     if(nMax < MagneticModels[0]->nMax) nMax = MagneticModels[0]->nMax;
     NumTerms = ((nMax + 1) * (nMax + 2) / 2);
     TimedMagneticModel = MAG_AllocateModelMemory(NumTerms); /* For storing the time modified WMM Model parameters */
+    cout << "allocate memory" << endl;
     if(MagneticModels[0] == NULL || TimedMagneticModel == NULL)
     {
         MAG_Error(2);
     }
 
     MAG_SetDefaults(&Ellip, &Geoid); /* Set default values and constants */
+    cout << "set defaults" << endl;
 
     CoordGeodetic.phi = lat;
     CoordGeodetic.lambda = lon;
@@ -352,10 +360,14 @@ MAGtype_GeoMagneticElements mocapFilter::init_magnetic_field(double lat, double 
     UserDate.Year = now->tm_year + 1900;
     UserDate.Month = now->tm_mon + 1;
     UserDate.Day = now->tm_mday;
+    cout << "create date" << endl;
 
     MAG_GeodeticToSpherical(Ellip, CoordGeodetic, &CoordSpherical); /*Convert from geodetic to Spherical Equations: 17-18, WMM Technical report*/
+    cout << "convert to spherical" << endl;
     MAG_TimelyModifyMagneticModel(UserDate, MagneticModels[0], TimedMagneticModel); /* Time adjust the coefficients, Equation 19, WMM Technical report */
+    cout << "time modify" << endl;
     MAG_Geomag(Ellip, CoordSpherical, CoordGeodetic, TimedMagneticModel, &GeoMagneticElements); /* Computes the geoMagnetic field elements and their time change*/
+    cout << "compute geomag" << endl;
     MAG_CalculateGridVariation(CoordGeodetic, &GeoMagneticElements);
 
     MAG_FreeMagneticModelMemory(TimedMagneticModel);

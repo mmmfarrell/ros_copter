@@ -93,6 +93,7 @@ private:
   double lat_, lon_, alt_, vg_, chi_;
   double lat0_, lon0_, alt0_, gps_count_;
   double mx_, my_, mz_, bx, by, bz;
+  bool gps_recieved;
   double alpha_;
   bool flying_;
 

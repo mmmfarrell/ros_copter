@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -6,6 +5,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <geomag/Geomagnetism.h>
+
 
 /* $Id: GeomagnetismLibrary.c 1287 2014-12-09 22:55:09Z awoods $
  *
@@ -1702,6 +1702,7 @@ MAGtype_MagneticModel *MAG_AllocateModelMemory(int NumTerms)
 CALLS : none
  */
 {
+    printf("allocating...");
     MAGtype_MagneticModel *MagneticModel;
     int i;
 
@@ -1710,6 +1711,7 @@ CALLS : none
 
     if(MagneticModel == NULL)
     {
+        printf("1");
         MAG_Error(2);
         return FALSE;
     }
@@ -1718,6 +1720,7 @@ CALLS : none
 
     if(MagneticModel->Main_Field_Coeff_G == NULL)
     {
+        printf("2");
         MAG_Error(2);
         return FALSE;
     }
@@ -1726,18 +1729,21 @@ CALLS : none
 
     if(MagneticModel->Main_Field_Coeff_H == NULL)
     {
+        printf("3");
         MAG_Error(2);
         return FALSE;
     }
     MagneticModel->Secular_Var_Coeff_G = (double *) malloc((NumTerms + 1) * sizeof ( double));
     if(MagneticModel->Secular_Var_Coeff_G == NULL)
     {
+        printf("4");
         MAG_Error(2);
         return FALSE;
     }
     MagneticModel->Secular_Var_Coeff_H = (double *) malloc((NumTerms + 1) * sizeof ( double));
     if(MagneticModel->Secular_Var_Coeff_H == NULL)
     {
+        printf("5");
         MAG_Error(2);
         return FALSE;
     }
