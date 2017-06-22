@@ -22,14 +22,15 @@ mocapFilter::mocapFilter() :
   ros_copter::importMatrixFromParamServer(nh_private_, R_GPS_, "R_GPS");
 
   // Setup publishers and subscribers
-  imu_sub_ = nh_.subscribe("imu/data", 1, &mocapFilter::imuCallback, this);
-  mocap_sub_ = nh_.subscribe("mocap", 1, &mocapFilter::mocapCallback, this);
-  gps_sub_ = nh_.subscribe("gps/data", 1, &mocapFilter::gpsCallback, this);
-  estimate_pub_ = nh_.advertise<nav_msgs::Odometry>("estimate", 1);
-  bias_pub_ = nh_.advertise<sensor_msgs::Imu>("estimate/bias", 1);
-  is_flying_pub_ = nh_.advertise<std_msgs::Bool>("is_flying", 1);
-  predict_timer_ = nh_.createTimer(ros::Duration(1.0/inner_loop_rate_), &mocapFilter::predictTimerCallback, this);
-  publish_timer_ = nh_.createTimer(ros::Duration(1.0/publish_rate_), &mocapFilter::publishTimerCallback, this);
+  imu_sub_        = nh_.subscribe("imu/data", 1, &mocapFilter::imuCallback, this);
+  mocap_sub_      = nh_.subscribe("mocap", 1, &mocapFilter::mocapCallback, this);
+  gps_sub_        = nh_.subscribe("gps/data", 1, &mocapFilter::gpsCallback, this);
+  range_sub_      = nh_.subscribe("lidar", 1, &mocapFilter::rangeCallback, this);
+  estimate_pub_   = nh_.advertise<nav_msgs::Odometry>("estimate", 1);
+  bias_pub_       = nh_.advertise<sensor_msgs::Imu>("estimate/bias", 1);
+  is_flying_pub_  = nh_.advertise<std_msgs::Bool>("is_flying", 1);
+  predict_timer_  = nh_.createTimer(ros::Duration(1.0/inner_loop_rate_), &mocapFilter::predictTimerCallback, this);
+  publish_timer_  = nh_.createTimer(ros::Duration(1.0/publish_rate_), &mocapFilter::publishTimerCallback, this);
 
   lat0_ = 0;
   lon0_ = 0;
@@ -38,6 +39,7 @@ mocapFilter::mocapFilter() :
 
   x_hat_.setZero();
   flying_ = false;
+  alt_from_range_ = false;
   ROS_INFO("Done");
   return;
 }
@@ -93,12 +95,27 @@ void mocapFilter::gpsCallback(const rosflight_msgs::GPS msg)
     ROS_INFO_THROTTLE(1,"Not flying, but GPS signal received");
     lat0_ = (gps_count_*lat0_ + msg.latitude)/(gps_count_ + 1);
     lon0_ = (gps_count_*lon0_ + msg.longitude)/(gps_count_ + 1);
-    alt0_ = (gps_count_*alt0_ + msg.altitude)/(gps_count_ + 1);
+    if (!alt_from_range_) {
+      alt0_ = (gps_count_*alt0_ + msg.altitude)/(gps_count_ + 1);
+    }
     gps_count_++;
   }else{
     if(msg.fix){
       updateGPS(msg);
     }
+  }
+}
+
+void mocapFilter::rangeCallback(const sensor_msgs::Range msg) 
+{
+  if (!flying_) {
+    ROS_INFO_THROTTLE(1, "Not flying, but Range message received");
+    if (msg.range > 0) {
+      alt_from_range_ = true;
+      alt0_ = msg.range;
+    }
+  }else {
+    updateRange(msg);
   }
 }
 
@@ -170,6 +187,12 @@ void mocapFilter::updateIMU(sensor_msgs::Imu msg)
   x_hat_ = x_hat_ + L*(y - C*x_hat_);
 }
 
+void mocapFilter::updateRange(sensor_msgs::Range msg)
+{
+  alt_ = msg.range;
+  alt_from_range_ = true;  
+}
+
 void mocapFilter::updateMocap(geometry_msgs::TransformStamped msg)
 {
   tf::Transform measurement;
@@ -208,7 +231,9 @@ void mocapFilter::updateGPS(rosflight_msgs::GPS msg)
       ROS_ERROR("First GPS message received without initialization");
       lat0_ = msg.latitude;
       lon0_ = msg.longitude;
-      alt0_ = msg.altitude;
+      if (alt_from_range_) {
+        alt0_ = msg.altitude;
+      }
       return;
     }
   }
@@ -217,9 +242,11 @@ void mocapFilter::updateGPS(rosflight_msgs::GPS msg)
   double v = x_hat_(V);
   lat_ = msg.latitude;
   lon_ = msg.longitude;
-  alt_ = msg.altitude;
   vg_ =  msg.speed;
   chi_ = msg.ground_course;
+  if (!alt_from_range_){
+    alt_ = msg.altitude;
+  }
 
   double dx, dy, dlat, dlon;
   dlat = (lat_ - lat0_);

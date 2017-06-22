@@ -3,6 +3,7 @@
 
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/Range.h>
 #include <std_msgs/Bool.h>
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/LU>
@@ -56,6 +57,7 @@ private:
   ros::Subscriber mocap_sub_;
   ros::Subscriber imu_sub_;
   ros::Subscriber gps_sub_;
+  ros::Subscriber range_sub_;
   ros::Publisher estimate_pub_;
   ros::Publisher bias_pub_;
   ros::Publisher is_flying_pub_;
@@ -88,15 +90,17 @@ private:
   double lat_, lon_, alt_, vg_, chi_;
   double lat0_, lon0_, alt0_, gps_count_;
   double alpha_;
-  bool flying_;
+  bool flying_, alt_from_range_;
 
   // Functions
   void mocapCallback(const geometry_msgs::TransformStamped msg);
   void imuCallback(const sensor_msgs::Imu msg);
+  void rangeCallback(const sensor_msgs::Range msg);
   void gpsCallback(const rosflight_msgs::GPS msg);
   void predictStep();
   void updateStep();
   void updateIMU(sensor_msgs::Imu msg);
+  void updateRange(sensor_msgs::Range msg);
   void updateMocap(geometry_msgs::TransformStamped msg);
   void updateGPS(rosflight_msgs::GPS msg);
   void initializeX(geometry_msgs::TransformStamped msg);
