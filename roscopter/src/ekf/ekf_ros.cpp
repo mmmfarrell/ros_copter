@@ -193,10 +193,11 @@ void EKF_ROS::imuCallback(const sensor_msgs::ImuConstPtr &msg)
     publishEstimates(msg);
 }
 
-void EKF_ROS::baroCallback(const rosflight_msgs::BarometerConstPtr& msg)
+void EKF_ROS::baroCallback(const sensor_msgs::FluidPressureConstPtr& msg)
 {
-  const double pressure_meas = msg->pressure;
-  const double temperature_meas = msg->temperature;
+  const double pressure_meas = msg->fluid_pressure * 1e3; // kPa to Pa
+  // const double temperature_meas = msg->temperature;
+  const double temperature_meas = 300; // K, assume constant temp
 
   if (!ekf_.groundTempPressSet())
   {

@@ -4,16 +4,16 @@
 # bag_name: "/home/mmmfarrell/magicc/roscopter_ws/src/bags/rock_canyon_walkpath.bag"
 # bag_name: "/home/mmmfarrell/magicc/roscopter_ws/src/bags/rock_canyon_north_eastfirst.bag"
 # bag_name: "/home/mmmfarrell/magicc/roscopter_ws/src/bags/rock_canyon_parkinglot_south_eastfirst.bag"
-bag_name: "/home/mmmfarrell/magicc/roscopter_ws/src/bags/rock_canyon_updown.bag"
+bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/rock_canyon/rock_canyon_nsew.bag"
 status_topic: "/status"
 imu_topic: "/imu/data"
-baro_topic: "/serial/baro"
-range_topic: "/serial/laser"
+baro_topic: "/baro"
+range_topic: ""
 pose_topic: ""
 odom_topic: ""
 gnss_topic: ""
 ublox_gnss_topic: ""
-inertial_sense_gnss_topic: "/ins/gps"
+inertial_sense_gnss_topic: "/gps"
 
 start_time: 0
 duration: 1000
@@ -30,8 +30,8 @@ enable_log: true
 ## Measurement Processing
 enable_partial_update: true
 enable_out_of_order: false # TODO this isnt fully implemented
-use_mocap: true
-use_gnss: false
+use_mocap: false
+use_gnss: true
 use_baro: true
 use_range: false
 use_zero_vel: true
@@ -45,7 +45,8 @@ P0: [10.0, 10.0, 10.0, # pos
      0.001, 0.001, 0.001, # vel
      0.01, 0.01, 0.01, # accel bias
      0.001, 0.001, 0.001, # gyro bias
-     9.0,           # baro bias
+     # 9.0,           # baro bias
+     0.0,           # baro bias
      100.0] # reference altitude
 
 ## Additive Process Noise
@@ -54,7 +55,8 @@ Qx: [0.000, 0.000, 0.000,       # pos
      0.00001, 0.00001, 0.00001,       # vel
      0.0001, 0.0001, 0.0001,       # accel bias
      0.0001, 0.0001, 0.0001,    # gyro bias
-     0.000001,                    # baro bias
+     # 0.000001,                    # baro bias
+     0.00000,                    # baro bias
      1.0]                       # reference altitude
 
 ## Lambda (Partial Update)
@@ -65,7 +67,8 @@ lambda: [1.0, 1.0, 1.0,       # pos
          1.0, 1.0, 1.0,       # vel
          0.1, 0.1, 0.1,       # accel bias
          0.1, 0.1, 0.1,       # gyro bias
-         0.5,                 # baro bias
+         # 0.5,                 # baro bias
+         0.0,                 # baro bias
          0.3]                 # reference altitude
 
 # Constant Parameeters

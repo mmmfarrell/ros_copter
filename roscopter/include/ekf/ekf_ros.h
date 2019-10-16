@@ -43,7 +43,8 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/Range.h>
 #include <nav_msgs/Odometry.h>
-#include <rosflight_msgs/Barometer.h>
+// #include <rosflight_msgs/Barometer.h>
+#include <sensor_msgs/FluidPressure.h>
 #include <rosflight_msgs/Status.h>
 #include <rosflight_msgs/GNSS.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -71,7 +72,7 @@ public:
   void initROS();
 
   void imuCallback(const sensor_msgs::ImuConstPtr& msg);
-  void baroCallback(const rosflight_msgs::BarometerConstPtr& msg);
+  void baroCallback(const sensor_msgs::FluidPressureConstPtr& msg);
   void rangeCallback(const sensor_msgs::RangeConstPtr& msg);
   void poseCallback(const geometry_msgs::PoseStampedConstPtr &msg);
   void odomCallback(const nav_msgs::OdometryConstPtr &msg);
