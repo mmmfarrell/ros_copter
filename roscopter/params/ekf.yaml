@@ -4,7 +4,7 @@
 # bag_name: "/home/mmmfarrell/magicc/roscopter_ws/src/bags/rock_canyon_walkpath.bag"
 # bag_name: "/home/mmmfarrell/magicc/roscopter_ws/src/bags/rock_canyon_north_eastfirst.bag"
 # bag_name: "/home/mmmfarrell/magicc/roscopter_ws/src/bags/rock_canyon_parkinglot_south_eastfirst.bag"
-bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/rock_canyon/rock_canyon_nsew.bag"
+bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/rock_canyon/rock_canyon_aruco1.bag"
 status_topic: "/status"
 imu_topic: "/imu/data"
 baro_topic: "/baro"
@@ -14,6 +14,7 @@ odom_topic: ""
 gnss_topic: ""
 ublox_gnss_topic: ""
 inertial_sense_gnss_topic: "/gps"
+aruco_topic: "/aruco/estimate"
 
 start_time: 0
 duration: 1000

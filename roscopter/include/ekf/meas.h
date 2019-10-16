@@ -28,6 +28,7 @@ struct Base
         BARO,
         RANGE,
         MOCAP,
+        ARUCO,
         ZERO_VEL
     };
     double t;
@@ -85,6 +86,13 @@ struct Mocap : public Base
     Mocap(double _t, const xform::Xformd& _z, const Matrix6d& _R);
     xform::Xformd z;
     Matrix6d R;
+};
+
+struct Aruco : public Base
+{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    Aruco(double _t, const Eigen::Vector3d& _z);
+    Eigen::Vector3d z;
 };
 
 struct ZeroVel: public Base

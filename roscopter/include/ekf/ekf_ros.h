@@ -80,6 +80,8 @@ public:
   void mocapCallback(const ros::Time& time, const xform::Xformd &z);
   void statusCallback(const rosflight_msgs::StatusConstPtr& msg);
 
+  void arucoCallback(const geometry_msgs::PoseStampedConstPtr& msg);
+
 #ifdef UBLOX
   void gnssCallbackUblox(const ublox::PosVelEcefConstPtr& msg);
 #endif

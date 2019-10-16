@@ -31,6 +31,9 @@ std::string Base::Type() const
     case MOCAP:
         return "Mocap";
         break;
+    case ARUCO:
+        return "Aruco";
+        break;
     case ZERO_VEL:
         return "ZeroVel";
         break;
@@ -85,6 +88,13 @@ Mocap::Mocap(double _t, const xform::Xformd &_z, const Matrix6d &_R) :
 {
     t = _t;
     type = MOCAP;
+}
+
+Aruco::Aruco(double _t, const Eigen::Vector3d &_z) :
+    z(_z)
+{
+    t = _t;
+    type = ARUCO;
 }
 
 ZeroVel::ZeroVel(double _t)

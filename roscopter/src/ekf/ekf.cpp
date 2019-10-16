@@ -346,6 +346,16 @@ void EKF::mocapCallback(const double& t, const xform::Xformd& z, const Matrix6d&
   }
 }
 
+void EKF::arucoCallback(const double& t, const Eigen::Vector3d& z)
+{
+  if (enable_out_of_order_)
+  {
+    std::cout << "ERROR OUT OF ORDER ARUCO NOT IMPLEMENTED" << std::endl;
+  }
+  else
+    arucoUpdate(meas::Aruco(t, z));
+}
+
 void EKF::baroUpdate(const meas::Baro &z)
 {
   if (!this->groundTempPressSet())
@@ -571,6 +581,12 @@ void EKF::zeroVelUpdate(double t)
     logs_[LOG_ZERO_VEL_RES]->log(t);
     logs_[LOG_ZERO_VEL_RES]->logVectors(r);
   }
+}
+
+void EKF::arucoUpdate(const meas::Aruco &z)
+{
+  std::cout << "Aruco update" << std::endl;
+
 }
 
 void EKF::setRefLla(Vector3d ref_lla)

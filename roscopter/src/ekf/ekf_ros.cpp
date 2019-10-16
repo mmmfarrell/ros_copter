@@ -275,6 +275,20 @@ void EKF_ROS::statusCallback(const rosflight_msgs::StatusConstPtr &msg)
   }
 }
 
+void EKF_ROS::arucoCallback(const geometry_msgs::PoseStampedConstPtr& msg)
+{
+  if (start_time_.sec == 0)
+    return;
+
+  Vector3d z;
+  z << msg->pose.position.x,
+       msg->pose.position.y,
+       msg->pose.position.z;
+
+  double t = (msg->header.stamp - start_time_).toSec();
+  ekf_.arucoCallback(t, z);
+}
+
 void EKF_ROS::gnssCallback(const rosflight_msgs::GNSSConstPtr &msg)
 {
   Vector6d z;

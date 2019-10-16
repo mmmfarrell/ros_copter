@@ -90,11 +90,15 @@ public:
   void gnssCallback(const double& t, const Vector6d& z, const Matrix6d& R);
   void mocapCallback(const double& t, const xform::Xformd& z, const Matrix6d& R);
 
+  void arucoCallback(const double& t, const Eigen::Vector3d& z);
+
   void baroUpdate(const meas::Baro &z);
   void rangeUpdate(const meas::Range &z);
   void gnssUpdate(const meas::Gnss &z);
   void mocapUpdate(const meas::Mocap &z);
   void zeroVelUpdate(double t);
+
+  void arucoUpdate(const meas::Aruco &z);
 
   void setRefLla(Eigen::Vector3d ref_lla);
 
