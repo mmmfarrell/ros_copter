@@ -48,7 +48,8 @@ P0: [10.0, 10.0, 10.0, # pos
      0.001, 0.001, 0.001, # gyro bias
      # 9.0,           # baro bias
      0.0,           # baro bias
-     100.0] # reference altitude
+     100.0, # reference altitude
+     0.0, 0.0, 0.0] # aruco position
 
 ## Additive Process Noise
 Qx: [0.000, 0.000, 0.000,       # pos
@@ -58,7 +59,8 @@ Qx: [0.000, 0.000, 0.000,       # pos
      0.0001, 0.0001, 0.0001,    # gyro bias
      # 0.000001,                    # baro bias
      0.00000,                    # baro bias
-     1.0]                       # reference altitude
+     1.0,                       # reference altitude
+     0.0, 0.0, 0.0]             # aruco position
 
 ## Lambda (Partial Update)
 # 1.0 = use full update
@@ -70,7 +72,8 @@ lambda: [1.0, 1.0, 1.0,       # pos
          0.1, 0.1, 0.1,       # gyro bias
          # 0.5,                 # baro bias
          0.0,                 # baro bias
-         0.3]                 # reference altitude
+         0.3,                 # reference altitude
+         0.0, 0.0, 0.0]       # aruco position
 
 # Constant Parameeters
 p_b2g: [0, 0, 0] # position from body frame to gps frame
