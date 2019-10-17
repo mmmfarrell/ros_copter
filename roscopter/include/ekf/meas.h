@@ -91,8 +91,9 @@ struct Mocap : public Base
 struct Aruco : public Base
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    Aruco(double _t, const Eigen::Vector3d& _z);
+    Aruco(double _t, const Eigen::Vector3d& _z, const Eigen::Matrix3d& _R);
     Eigen::Vector3d z;
+    Eigen::Matrix3d R;
 };
 
 struct ZeroVel: public Base

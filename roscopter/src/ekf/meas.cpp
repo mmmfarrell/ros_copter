@@ -90,8 +90,9 @@ Mocap::Mocap(double _t, const xform::Xformd &_z, const Matrix6d &_R) :
     type = MOCAP;
 }
 
-Aruco::Aruco(double _t, const Eigen::Vector3d &_z) :
-    z(_z)
+Aruco::Aruco(double _t, const Eigen::Vector3d &_z, const Eigen::Matrix3d &_R) :
+    z(_z),
+    R(_R)
 {
     t = _t;
     type = ARUCO;

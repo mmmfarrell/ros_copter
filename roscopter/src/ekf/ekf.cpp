@@ -46,6 +46,7 @@ void EKF::load(const std::string &filename)
   get_yaml_node("use_baro", filename, use_baro_);
   get_yaml_node("use_range", filename, use_range_);
   get_yaml_node("use_zero_vel", filename, use_zero_vel_);
+  get_yaml_node("use_aruco", filename, use_aruco_);
 
   // Armed Check
   get_yaml_node("enable_arm_check", filename, enable_arm_check_);
@@ -347,14 +348,14 @@ void EKF::mocapCallback(const double& t, const xform::Xformd& z, const Matrix6d&
   }
 }
 
-void EKF::arucoCallback(const double& t, const Eigen::Vector3d& z)
+void EKF::arucoCallback(const double& t, const Eigen::Vector3d& z, const Eigen::Matrix3d& R)
 {
   if (enable_out_of_order_)
   {
     std::cout << "ERROR OUT OF ORDER ARUCO NOT IMPLEMENTED" << std::endl;
   }
   else
-    arucoUpdate(meas::Aruco(t, z));
+    arucoUpdate(meas::Aruco(t, z, R));
 }
 
 void EKF::baroUpdate(const meas::Baro &z)
@@ -586,8 +587,24 @@ void EKF::zeroVelUpdate(double t)
 
 void EKF::arucoUpdate(const meas::Aruco &z)
 {
-  std::cout << "Aruco update" << std::endl;
+  // TODO rotate into camera frame
+  const Vector3d zhat = x().gp;
+  const Vector3d r = z.z - zhat;
 
+  typedef ErrorState E;
+  Matrix<double, 3, E::NDX> H;
+  H.setZero();
+  H.block<3, 3>(0, E::DGP).setIdentity();
+
+  /// TODO: Saturate r
+  if (use_aruco_)
+    measUpdate(r, z.R, H);
+
+  if (enable_log_)
+  {
+    logs_[LOG_ARUCO_RES]->log(z.t);
+    logs_[LOG_ARUCO_RES]->logVectors(r, z.z, zhat);
+  }
 }
 
 void EKF::setRefLla(Vector3d ref_lla)

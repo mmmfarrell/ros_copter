@@ -145,6 +145,7 @@ private:
   Matrix6d mocap_R_;
   double baro_R_;
   double range_R_;
+  Eigen::Matrix3d aruco_R_;
 
   bool manual_gps_noise_;
   double gps_horizontal_stdev_;

@@ -90,7 +90,7 @@ public:
   void gnssCallback(const double& t, const Vector6d& z, const Matrix6d& R);
   void mocapCallback(const double& t, const xform::Xformd& z, const Matrix6d& R);
 
-  void arucoCallback(const double& t, const Eigen::Vector3d& z);
+  void arucoCallback(const double& t, const Eigen::Vector3d& z, const Eigen::Matrix3d& R);
 
   void baroUpdate(const meas::Baro &z);
   void rangeUpdate(const meas::Range &z);
@@ -115,6 +115,7 @@ public:
     LOG_ZERO_VEL_RES,
     LOG_BARO_RES,
     LOG_RANGE_RES,
+    LOG_ARUCO_RES,
     LOG_IMU,
     LOG_LLA,
     LOG_REF,
@@ -128,6 +129,7 @@ public:
     "zero_vel_res",
     "baro_res",
     "range_res",
+    "aruco_res",
     "imu",
     "lla",
     "ref"
@@ -178,6 +180,8 @@ public:
   bool use_range_;
   bool use_gnss_;
   bool use_zero_vel_;
+  bool use_aruco_;
+
   bool enable_out_of_order_;
   bool enable_partial_update_;
   meas::MeasSet meas_;

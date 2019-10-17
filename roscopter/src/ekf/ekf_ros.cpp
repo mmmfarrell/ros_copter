@@ -101,6 +101,10 @@ void EKF_ROS::init(const std::string &param_file)
   get_yaml_node("range_noise_stdev", param_file, range_stdev);
   range_R_ = range_stdev * range_stdev;
 
+  double aruco_pos_stdev;
+  get_yaml_node("aruco_pos_stdev", param_file, aruco_pos_stdev);
+  aruco_R_ = aruco_pos_stdev * aruco_pos_stdev * Eigen::Matrix3d::Identity();
+
   get_yaml_node("manual_gps_noise", param_file, manual_gps_noise_);
   if (manual_gps_noise_)
   {
@@ -286,7 +290,7 @@ void EKF_ROS::arucoCallback(const geometry_msgs::PoseStampedConstPtr& msg)
        msg->pose.position.z;
 
   double t = (msg->header.stamp - start_time_).toSec();
-  ekf_.arucoCallback(t, z);
+  ekf_.arucoCallback(t, z, aruco_R_);
 }
 
 void EKF_ROS::gnssCallback(const rosflight_msgs::GNSSConstPtr &msg)
