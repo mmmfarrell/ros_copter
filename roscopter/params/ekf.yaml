@@ -22,7 +22,7 @@ duration: 1000
 ## Is_flying checks
 enable_arm_check: false # require armed before checking for is_flying
 is_flying_threshold: 10.5 # if accel measurement exceed this magnitude, set is_flying
-update_baro_velocity_threshold: 0.5
+update_baro_velocity_threshold: 0.0
 
 ## Logging
 log_prefix: "/tmp/roscopter/ekf/"
