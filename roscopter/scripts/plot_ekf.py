@@ -207,6 +207,16 @@ def plotGnssRes():
             plt.legend()
     pw.addPlot("Gnss Res", f)
 
+def plotArucoRes():
+    f = plt.figure()
+    plt.suptitle('Aruco Res')
+    for i in range(3):
+        plt.subplot(3, 1, i + 1)
+        plt.plot(data.arucoRes['t'], data.arucoRes['r'][:,i])                          
+        if i == 0:
+            plt.legend()
+    pw.addPlot("Aruco Res", f)
+
 
 def plotResults(directory):
     np.set_printoptions(linewidth=150)
@@ -239,6 +249,7 @@ def plotResults(directory):
     plotBaroRes()
     plotRangeRes()
     plotGnssRes()
+    plotArucoRes()
 
     pw.show()
 

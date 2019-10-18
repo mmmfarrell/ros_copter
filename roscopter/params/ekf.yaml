@@ -59,7 +59,7 @@ Qx: [0.000, 0.000, 0.000,       # pos
      0.0001, 0.0001, 0.0001,       # accel bias
      0.0001, 0.0001, 0.0001,    # gyro bias
      # 0.000001,                    # baro bias
-     0.00000,                    # baro bias
+     1.01,                    # baro bias
      1.0,                       # reference altitude
      0.0001, 0.0001, 0.0001]             # aruco position
 
@@ -71,13 +71,14 @@ lambda: [1.0, 1.0, 1.0,       # pos
          1.0, 1.0, 1.0,       # vel
          0.1, 0.1, 0.1,       # accel bias
          0.1, 0.1, 0.1,       # gyro bias
-         # 0.5,                 # baro bias
-         0.0,                 # baro bias
+         0.5,                 # baro bias
          0.3,                 # reference altitude
          1.0, 1.0, 1.0]       # aruco position
 
 # Constant Parameeters
 p_b2g: [0, 0, 0] # position from body frame to gps frame
+# p_b_c: [0., 0., 0.]
+q_b2c: [0.7071, 0, 0, 0.7071]
 
 # Initial State
 manual_ref_lla: false # Use manual ref_lla or use first lla from gps

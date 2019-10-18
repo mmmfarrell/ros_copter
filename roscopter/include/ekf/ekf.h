@@ -146,6 +146,7 @@ public:
   // Constants
   xform::Xformd x0_;
   Eigen::Vector3d p_b2g_;
+  quat::Quatd q_b2c_;
   xform::Xformd x_e2I_;
   quat::Quatd q_n2I_;
   Eigen::Matrix4d R_zero_vel_;

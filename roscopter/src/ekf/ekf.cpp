@@ -27,6 +27,8 @@ void EKF::load(const std::string &filename)
 {
   // Constant Parameters
   get_yaml_eigen("p_b2g", filename, p_b2g_);
+  get_yaml_eigen("q_b2c", filename, q_b2c_.arr_);
+  q_b2c_.normalize();
   get_yaml_diag("Qx", filename, Qx_);
   get_yaml_diag("P0", filename, P());
   P0_yaw_ = P()(ErrorState::DQ + 2, ErrorState::DQ + 2);
@@ -587,14 +589,21 @@ void EKF::zeroVelUpdate(double t)
 
 void EKF::arucoUpdate(const meas::Aruco &z)
 {
-  // TODO rotate into camera frame
-  const Vector3d zhat = x().gp;
+  // TODO account for positional offset of camera
+
+  // rotate goal position from inertial frame to body frame to camera frame
+  const Vector3d goal_pos = x().gp;
+  const Vector3d zhat = q_b2c_.rotp(x().q.rotp(goal_pos));
   const Vector3d r = z.z - zhat;
+
+  const Matrix3d R_b2c = q_b2c_.R();
+  const Matrix3d R_I2b = x().q.R();
 
   typedef ErrorState E;
   Matrix<double, 3, E::NDX> H;
   H.setZero();
-  H.block<3, 3>(0, E::DGP).setIdentity();
+  H.block<3, 3>(0, E::DGP) = R_b2c * R_I2b;
+  H.block<3, 3>(0, E::DQ) = R_b2c * R_I2b * skew(goal_pos);
 
   /// TODO: Saturate r
   if (use_aruco_)

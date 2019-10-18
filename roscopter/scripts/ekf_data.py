@@ -81,6 +81,13 @@ BaroResType = np.dtype([
         ('temp', f64)
 ])
 
+ArucoResType = np.dtype([
+	('t', f64),
+	('r', Vec3),
+	('z', Vec3),
+	('zhat', Vec3)
+])
+
 class Log:
 	def __init__(self, prefix):
 		self.prefix = prefix
@@ -95,6 +102,8 @@ class Log:
 		setattr(self, "baroRes", np.fromfile(os.path.join(prefix,
                     "baro_res.bin"), dtype=BaroResType))
 		setattr(self, "rangeRes", np.fromfile(os.path.join(prefix, "range_res.bin"), dtype=RangeResType))
+		setattr(self, "arucoRes", np.fromfile(os.path.join(prefix,
+                    "aruco_res.bin"), dtype=ArucoResType))
 		setattr(self, "imu", np.fromfile(os.path.join(prefix, "imu.bin"), dtype=ImuType))
 		setattr(self, "lla", np.fromfile(os.path.join(prefix, "lla.bin"), dtype=LlaType))
 		setattr(self, "ref", np.fromfile(os.path.join(prefix, "ref.bin"), dtype=RefType))
