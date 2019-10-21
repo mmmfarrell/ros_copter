@@ -23,6 +23,7 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
     dx.bb = 0.;
     dx.ref = 0.;
     dx.gp = -x.q.rota(x.v);
+    dx.gatt = 0.;
 
     CHECK_NAN(dx.arr);
     if (calc_jac)

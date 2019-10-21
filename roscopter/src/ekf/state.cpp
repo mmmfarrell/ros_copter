@@ -17,7 +17,8 @@ ErrorState::ErrorState() :
     bg(arr.data()+12),
     bb(*(arr.data()+15)),
     ref(*(arr.data()+16)),
-    gp(arr.data()+17)
+    gp(arr.data()+17),
+    gatt(*(arr.data()+20))
 {
     arr.setConstant(NAN);
 }
@@ -116,6 +117,7 @@ State::State() :
     bb(*(arr.data()+17)),
     ref(*(arr.data()+18)),
     gp(arr.data()+19),
+    gatt(*(arr.data()+22)),
     imu(arr.data()+1+NX),
     a(arr.data()+1+NX),
     w(arr.data()+1+NX+3)
@@ -149,6 +151,7 @@ State State::operator+(const ErrorState& dx) const
     xp.bb = bb + dx.bb;
     xp.ref = ref + dx.ref;
     xp.gp = gp + dx.gp;
+    xp.gatt = gatt + dx.gatt;
     return xp;
 }
 
@@ -163,6 +166,7 @@ State State::operator+(const Matrix<double, ErrorState::SIZE, 1>& dx) const
     xp.bb = bb + dx(ErrorState::DBB);
     xp.ref = ref + dx(ErrorState::DREF);
     xp.gp = gp + dx.segment<3>(ErrorState::DGP);
+    xp.gatt = gatt + dx(ErrorState::DGATT);
     return xp;
 }
 
@@ -176,6 +180,7 @@ State& State::operator+=(const VectorXd& dx)
     bb += dx(ErrorState::DBB);
     ref += dx(ErrorState::DREF);
     gp += dx.segment<3>(ErrorState::DGP);
+    gatt += dx(ErrorState::DGATT);
 
     return *this;
 }
@@ -190,6 +195,7 @@ State& State::operator+=(const ErrorState& dx)
     bb = bb + dx.bb;
     ref = ref + dx.ref;
     gp = gp + dx.gp;
+    gatt = gatt + dx.gatt;
 
     return *this;
 }
@@ -205,6 +211,7 @@ ErrorState State:: operator-(const State& dx) const
     del.bb = bb - dx.bb;
     del.ref = ref - dx.ref;
     del.gp = gp - dx.gp;
+    del.gatt = gatt - dx.gatt;
 
     return del;
 }

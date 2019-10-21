@@ -136,7 +136,7 @@ def plotImuBias():
             plt.legend()
     pw.addPlot("IMU Bias", f)
 
-def plotAruco():
+def plotArucoPosition():
     f = plt.figure()
     plt.suptitle('Aruco Position')
     for i in range(3):
@@ -151,6 +151,18 @@ def plotAruco():
         if i == 0:
             plt.legend()
     pw.addPlot('Aruco Pos', f)
+
+def plotArucoAttitude():
+    f = plt.figure()
+    plt.suptitle('Aruco Attitude')
+    plt.plot(data.x['t'], data.x['gatt'][:], label=r"$\hat{x}$")
+    if plotCov:
+        plt.plot(data.cov['t'], data.x['gatt'][:] +
+                2.0*np.sqrt(data.cov['P'][:, 20,20]), '-k', alpha=0.3)
+        plt.plot(data.cov['t'], data.x['gatt'][:] -
+                2.0*np.sqrt(data.cov['P'][:, 20,20]), '-k', alpha=0.3)
+    plt.legend()
+    pw.addPlot('Aruco Att', f)
 
 def plotZVRes():
     f = plt.figure()
@@ -243,7 +255,8 @@ def plotResults(directory):
     plotLla()
     plotIMU()
     plotImuBias()
-    plotAruco()
+    plotArucoPosition()
+    plotArucoAttitude()
 
     plotZVRes()
     plotBaroRes()
