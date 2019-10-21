@@ -63,7 +63,7 @@ Qx: [0.000, 0.000, 0.000,       # pos
      1.01,                    # baro bias
      1.0,                       # reference altitude
      0.0001, 0.0001, 0.0001,             # aruco position
-     1.0]                       # aruco attitude
+     0.0001]                       # aruco attitude
 
 ## Lambda (Partial Update)
 # 1.0 = use full update
@@ -99,6 +99,7 @@ attitude_noise_stdev: 0.01 # Mocap
 baro_pressure_noise_stdev: 2.0
 range_noise_stdev: 0.1
 aruco_pos_stdev: 0.1
+aruco_yaw_stdev: 0.1
 
 manual_gps_noise: false # choose noise params for GPS or use the values reported from the message topic
 gps_horizontal_stdev: 0.021

@@ -351,14 +351,16 @@ void EKF::mocapCallback(const double& t, const xform::Xformd& z, const Matrix6d&
   }
 }
 
-void EKF::arucoCallback(const double& t, const Eigen::Vector3d& z, const Eigen::Matrix3d& R)
+void EKF::arucoCallback(const double& t, const Eigen::Vector3d& z,
+                        const Eigen::Matrix3d& R, const quat::Quatd& q_c2a,
+                        const Matrix1d& yaw_R)
 {
   if (enable_out_of_order_)
   {
     std::cout << "ERROR OUT OF ORDER ARUCO NOT IMPLEMENTED" << std::endl;
   }
   else
-    arucoUpdate(meas::Aruco(t, z, R));
+    arucoUpdate(meas::Aruco(t, z, R, q_c2a, yaw_R));
 }
 
 void EKF::baroUpdate(const meas::Baro &z)
@@ -615,6 +617,25 @@ void EKF::arucoUpdate(const meas::Aruco &z)
     logs_[LOG_ARUCO_RES]->log(z.t);
     logs_[LOG_ARUCO_RES]->logVectors(r, z.z, zhat);
   }
+
+  // Update goal attitude (janky) TODO fixme
+  quat::Quatd q_a2g = quat::Quatd(M_PI, 0., M_PI / 2.);
+  quat::Quatd q_I2g_meas = x().q * q_b2c_ * z.q_c2a * q_a2g;
+  const double yaw_meas = q_I2g_meas.euler()(2);
+  Vector1d r_yaw(yaw_meas - x().gatt);
+  wrapAngle(r_yaw(0));
+
+  Matrix<double, 1, E::NDX> H_yaw;
+  H_yaw.setZero();
+  H_yaw(0, E::DGATT) = 1.;
+
+  /// TODO: Saturate r
+  if (use_aruco_)
+    measUpdate(r_yaw, z.yaw_R, H_yaw);
+  // z_resid_(0) = resid;
+  // H_.setZero();
+  // H_(0, xGOAL_ATT) = 1.;
+  // update(yaw_dims, z_resid_, z_R_, H_);
 }
 
 void EKF::setRefLla(Vector3d ref_lla)
@@ -635,6 +656,14 @@ void EKF::setRefLla(Vector3d ref_lla)
 
   ref_lla_set_ = true;
 
+}
+
+void EKF::wrapAngle(double& ang)
+{
+  while (ang > M_PI)
+    ang -= 2 * M_PI;
+  while (ang <= -M_PI)
+    ang += 2 * M_PI;
 }
 
 void EKF::cleanUpMeasurementBuffers()

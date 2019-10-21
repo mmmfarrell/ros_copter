@@ -90,7 +90,9 @@ public:
   void gnssCallback(const double& t, const Vector6d& z, const Matrix6d& R);
   void mocapCallback(const double& t, const xform::Xformd& z, const Matrix6d& R);
 
-  void arucoCallback(const double& t, const Eigen::Vector3d& z, const Eigen::Matrix3d& R);
+  void arucoCallback(const double& t, const Eigen::Vector3d& z,
+                     const Eigen::Matrix3d& R, const quat::Quatd& q_c2a,
+                     const Matrix1d& yaw_R);
 
   void baroUpdate(const meas::Baro &z);
   void rangeUpdate(const meas::Range &z);
@@ -101,6 +103,7 @@ public:
   void arucoUpdate(const meas::Aruco &z);
 
   void setRefLla(Eigen::Vector3d ref_lla);
+  void wrapAngle(double& ang);
 
   void cleanUpMeasurementBuffers();
 

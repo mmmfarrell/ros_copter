@@ -146,6 +146,7 @@ private:
   double baro_R_;
   double range_R_;
   Eigen::Matrix3d aruco_R_;
+  Matrix1d aruco_yaw_R_;
 
   bool manual_gps_noise_;
   double gps_horizontal_stdev_;
