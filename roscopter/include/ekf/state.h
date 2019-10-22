@@ -26,8 +26,10 @@ public:
         DGV = 19,
         DGATT = 21,
         DGW = 22,
-        NDX = 23,
-        SIZE = 23
+        DLMS = 23,
+        MAX_LMS = 10,
+        NDX = 23 + 3 * MAX_LMS,
+        SIZE = 23 + 3 * MAX_LMS
     };
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Eigen::Matrix<double, SIZE, 1> arr;
@@ -43,6 +45,7 @@ public:
     Eigen::Map<Eigen::Vector2d> gv;
     double& gatt;
     double& gw;
+    Eigen::Map<Eigen::Matrix<double, MAX_LMS, 3>> lms;
 
     ErrorState();
     ErrorState(const ErrorState& obj);
@@ -93,9 +96,11 @@ public:
       GV = 21, // Goal velocity
       GATT = 23, // Goal yaw attitude
       GW = 24, // Goal yaw angular velocity
-      A = 25,
-      W = 28,
-      NX = 24, // number of states
+      LMS = 25,
+      MAX_LMS = 10,
+      NX = 24 + 3 * MAX_LMS,
+      A = 1 + NX,
+      W = 1 + NX + 3,
       SIZE = 1 + NX + 6
   };
   Eigen::Matrix<double, SIZE, 1> arr;
@@ -117,6 +122,7 @@ public:
   Eigen::Map<Eigen::Vector2d> gv;
   double& gatt;
   double& gw;
+  Eigen::Map<Eigen::Matrix<double, MAX_LMS, 3>> lms;
 
   State();
   State(const State& other);
@@ -143,6 +149,8 @@ public:
       out.gv.setZero();
       out.gatt = 0.;
       out.gw = 0.;
+      out.lms.setZero();
+
       return out;
   }
 

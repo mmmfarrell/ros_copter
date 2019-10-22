@@ -20,7 +20,8 @@ ErrorState::ErrorState() :
     gp(arr.data()+17),
     gv(arr.data()+19),
     gatt(*(arr.data()+21)),
-    gw(*(arr.data()+22))
+    gw(*(arr.data()+22)),
+    lms(arr.data()+23)
 {
     arr.setConstant(NAN);
 }
@@ -122,6 +123,7 @@ State::State() :
     gv(arr.data()+21),
     gatt(*(arr.data()+23)),
     gw(*(arr.data()+24)),
+    lms(arr.data()+25),
     imu(arr.data()+1+NX),
     a(arr.data()+1+NX),
     w(arr.data()+1+NX+3)
@@ -158,6 +160,8 @@ State State::operator+(const ErrorState& dx) const
     xp.gv = gv + dx.gv;
     xp.gatt = gatt + dx.gatt;
     xp.gw = gw + dx.gw;
+    xp.lms = lms + dx.lms;
+
     return xp;
 }
 
@@ -175,6 +179,10 @@ State State::operator+(const Matrix<double, ErrorState::SIZE, 1>& dx) const
     xp.gv = gv + dx.segment<2>(ErrorState::DGV);
     xp.gatt = gatt + dx(ErrorState::DGATT);
     xp.gw = gw + dx(ErrorState::DGW);
+
+    const Eigen::Map<const Eigen::Matrix<double, MAX_LMS, 3>> dx_lms(dx.data() + 23);
+    xp.lms = lms + dx_lms;
+
     return xp;
 }
 
@@ -192,6 +200,9 @@ State& State::operator+=(const VectorXd& dx)
     gatt += dx(ErrorState::DGATT);
     gw += dx(ErrorState::DGW);
 
+    const Eigen::Map<const Eigen::Matrix<double, MAX_LMS, 3>> dx_lms(dx.data() + 23);
+    lms += dx_lms;
+
     return *this;
 }
 
@@ -208,6 +219,7 @@ State& State::operator+=(const ErrorState& dx)
     gv = gv + dx.gv;
     gatt = gatt + dx.gatt;
     gw = gw + dx.gw;
+    lms = lms + dx.lms;
 
     return *this;
 }
@@ -226,6 +238,7 @@ ErrorState State:: operator-(const State& dx) const
     del.gv = gv - dx.gv;
     del.gatt = gatt - dx.gatt;
     del.gw = gw - dx.gw;
+    del.lms = lms - dx.lms;
 
     return del;
 }

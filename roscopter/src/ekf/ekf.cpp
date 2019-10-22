@@ -31,13 +31,24 @@ void EKF::load(const std::string &filename)
   get_yaml_eigen("q_b2c", filename, q_b2c_.arr_);
   q_b2c_.normalize();
 
-  get_yaml_diag("Qx", filename, Qx_);
-  get_yaml_diag("P0", filename, P());
+  Qx_.setZero();
+  Eigen::Matrix<double, ErrorState::DLMS, ErrorState::DLMS> Qx_states;
+  get_yaml_diag("Qx", filename, Qx_states);
+  Qx_.topLeftCorner(ErrorState::DLMS, ErrorState::DLMS) = Qx_states;
+
+  P().setZero();
+  Eigen::Matrix<double, ErrorState::DLMS, ErrorState::DLMS> P0_states;
+  get_yaml_diag("P0", filename, P0_states);
+  P().topLeftCorner(ErrorState::DLMS, ErrorState::DLMS) = P0_states;
   P0_yaw_ = P()(ErrorState::DQ + 2, ErrorState::DQ + 2);
+
   get_yaml_diag("R_zero_vel", filename, R_zero_vel_);
 
   // Partial Update
-  get_yaml_eigen("lambda", filename, lambda_vec_);
+  lambda_vec_.setZero();
+  Eigen::Matrix<double, ErrorState::DLMS, 1> lambda_states;
+  get_yaml_eigen("lambda", filename, lambda_states);
+  lambda_vec_.head(ErrorState::DLMS) = lambda_states;
   const dxVec ones = dxVec::Constant(1.0);
   lambda_mat_ = ones * lambda_vec_.transpose() + lambda_vec_ * ones.transpose() -
                 lambda_vec_ * lambda_vec_.transpose();

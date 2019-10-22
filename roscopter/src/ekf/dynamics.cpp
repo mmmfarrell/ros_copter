@@ -34,6 +34,7 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
       dx.gv.setZero();
       dx.gatt = x.gw;
       dx.gw = 0.;
+      dx.lms.setZero();
     }
     else
     {
@@ -41,6 +42,7 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
       dx.gv.setZero();
       dx.gatt = 0.;
       dx.gw = 0.;
+      dx.lms.setZero();
     }
 
     CHECK_NAN(dx.arr);
