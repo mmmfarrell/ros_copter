@@ -25,12 +25,19 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
 
     if (goal_initialized_)
     {
-      dx.gp = -x.q.rota(x.v);
+      const Eigen::Matrix2d R_I2g = rotm2dItoB(x.gatt);
+      const Eigen::Vector2d goal_vel_I_2d = R_I2g.transpose() * x.gv;
+      const Eigen::Vector3d goal_vel_I(goal_vel_I_2d(0), goal_vel_I_2d(1), 0.);
+
+      // dx.gp = -x.q.rota(x.v);
+      dx.gp = goal_vel_I - x.q.rota(x.v);
+      dx.gv.setZero();
       dx.gatt = 0.;
     }
     else
     {
       dx.gp.setZero();
+      dx.gv.setZero();
       dx.gatt = 0.;
     }
 
@@ -61,10 +68,47 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
         {
           A_.block<3,3>(DX::DGP, DX::DQ) = R.T * skew(x.v);
           A_.block<3,3>(DX::DGP, DX::DV) = -R.T;
+
+          const Eigen::Matrix2d R_I2g = rotm2dItoB(x.gatt);
+          const Eigen::Matrix2d dR_v2g_dTheta = dR2DdTheta(x.gatt);
+          A_.block<2, 2>(DX::DGP, DX::DGV) = R_I2g.transpose();
+          A_.block<2, 1>(DX::DGP, DX::DGATT) = dR_v2g_dTheta.transpose() * x.gv;
         }
 
         CHECK_NAN(A_); CHECK_NAN(B_);
     }
+}
+
+Eigen::Matrix2d EKF::rotm2dItoB(const double theta)
+{
+  const double ct = cos(theta);
+  const double st = sin(theta);
+
+  // Inertial frame to body frame from UAV book
+  Eigen::Matrix2d rotm;
+  rotm(0, 0) = ct;
+  rotm(0, 1) = st;
+
+  rotm(1, 0) = -st;
+  rotm(1, 1) = ct;
+
+  return rotm;
+}
+
+Eigen::Matrix2d EKF::dR2DdTheta(const double theta)
+{
+  const double ct = cos(theta);
+  const double st = sin(theta);
+
+  // Inertial frame to body frame from UAV book
+  Eigen::Matrix2d rotm;
+  rotm(0, 0) = -st;
+  rotm(0, 1) = ct;
+
+  rotm(1, 0) = -ct;
+  rotm(1, 1) = -st;
+
+  return rotm;
 }
 
 void EKF::errorStateDynamics(const State& xhat, const ErrorState& xt, const Vector6d& u,

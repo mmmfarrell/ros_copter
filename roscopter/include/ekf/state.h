@@ -23,9 +23,10 @@ public:
         DBB = 15,
         DREF = 16,
         DGP = 17,
-        DGATT = 20,
-        NDX = 21,
-        SIZE = 21
+        DGV = 20,
+        DGATT = 22,
+        NDX = 23,
+        SIZE = 23
     };
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Eigen::Matrix<double, SIZE, 1> arr;
@@ -38,6 +39,7 @@ public:
     double& bb; // bias for barometer measurements
     double& ref; // reference global altitude of NED frame
     Eigen::Map<Eigen::Vector3d> gp;
+    Eigen::Map<Eigen::Vector2d> gv;
     double& gatt;
 
     ErrorState();
@@ -86,10 +88,11 @@ public:
       BB = 17,
       REF = 18,
       GP = 19, // Goal position
-      GATT = 22, // Goal position
-      A = 23,
-      W = 26,
-      NX = 22, // number of states
+      GV = 22, // Goal velocity
+      GATT = 24, // Goal yaw attitude
+      A = 25,
+      W = 28,
+      NX = 24, // number of states
       SIZE = 1 + NX + 6
   };
   Eigen::Matrix<double, SIZE, 1> arr;
@@ -108,6 +111,7 @@ public:
   double& bb; // barometer pressure bias
   double& ref; // reference global altitude of NED frame
   Eigen::Map<Eigen::Vector3d> gp;
+  Eigen::Map<Eigen::Vector2d> gv;
   double& gatt;
 
   State();
@@ -132,6 +136,8 @@ public:
       out.bb = 0.;
       out.ref = 0.;
       out.gp.setZero();
+      out.gv.setZero();
+      out.gatt = 0.;
       return out;
   }
 

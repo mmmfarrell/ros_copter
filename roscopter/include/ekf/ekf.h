@@ -23,6 +23,7 @@
 /// Add an index in the ErrorState and State objects in state.cpp/state.h
 /// Make sure the SIZE enums are correct
 /// Add relevant Jacobians and Dynamics to measurement update functions and dynamics
+/// Add values for P0, Qx, and Lambda in ekf.yaml
 /// Profit.
 
 namespace roscopter
@@ -82,6 +83,8 @@ public:
   void dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_jac=false);
   void errorStateDynamics(const State& x, const ErrorState& dx, const Vector6d& u,
                           const Vector6d& eta, ErrorState& dxdot);
+  Eigen::Matrix2d rotm2dItoB(const double theta);
+  Eigen::Matrix2d dR2DdTheta(const double theta);
 
   meas::MeasSet::iterator getOldestNewMeas();
   void imuCallback(const double& t, const Vector6d& z, const Matrix6d& R);

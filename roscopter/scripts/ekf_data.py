@@ -2,6 +2,7 @@ import numpy as np
 import os
 
 f64 = np.float64
+Vec2 = (f64, 2)
 Vec3 = (f64, 3)
 Vec4 = (f64, 4)
 Vec6 = (f64, 6)
@@ -19,6 +20,7 @@ StateType = np.dtype([
 	('bb', f64),
 	('ref', f64),
 	('gp', Vec3),
+	('gv', Vec2),
 	('gatt', f64),
 	('a', Vec3),
 	('w', Vec3),
@@ -27,7 +29,7 @@ StateType = np.dtype([
 
 CovType = np.dtype([
 	('t', f64),
-	('P', (f64, (21, 21)))
+	('P', (f64, (23, 23)))
 ])
 
 RefType = np.dtype([

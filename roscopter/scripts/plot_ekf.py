@@ -152,15 +152,31 @@ def plotArucoPosition():
             plt.legend()
     pw.addPlot('Aruco Pos', f)
 
+def plotArucoVelocity():
+    f = plt.figure()
+    plt.suptitle('Aruco Velocity')
+    for i in range(2):
+        plt.subplot(2, 1, i+1)
+        plt.title(xtitles[i])
+        plt.plot(data.x['t'], data.x['gv'][:,i], label=r"$\hat{x}$")
+        if plotCov:
+            plt.plot(data.cov['t'], data.x['gv'][:,i] +
+                    2.0*np.sqrt(data.cov['P'][:, i+20,i+20]), '-k', alpha=0.3)
+            plt.plot(data.cov['t'], data.x['gv'][:,i] -
+                    2.0*np.sqrt(data.cov['P'][:, i+20,i+20]), '-k', alpha=0.3)
+        if i == 0:
+            plt.legend()
+    pw.addPlot('Aruco Vel', f)
+
 def plotArucoAttitude():
     f = plt.figure()
     plt.suptitle('Aruco Attitude')
     plt.plot(data.x['t'], data.x['gatt'][:], label=r"$\hat{x}$")
     if plotCov:
         plt.plot(data.cov['t'], data.x['gatt'][:] +
-                2.0*np.sqrt(data.cov['P'][:, 20,20]), '-k', alpha=0.3)
+                2.0*np.sqrt(data.cov['P'][:, 22,22]), '-k', alpha=0.3)
         plt.plot(data.cov['t'], data.x['gatt'][:] -
-                2.0*np.sqrt(data.cov['P'][:, 20,20]), '-k', alpha=0.3)
+                2.0*np.sqrt(data.cov['P'][:, 22,22]), '-k', alpha=0.3)
     plt.legend()
     pw.addPlot('Aruco Att', f)
 
@@ -256,6 +272,7 @@ def plotResults(directory):
     plotIMU()
     plotImuBias()
     plotArucoPosition()
+    plotArucoVelocity()
     plotArucoAttitude()
 
     plotZVRes()
