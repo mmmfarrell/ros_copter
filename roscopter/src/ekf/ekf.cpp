@@ -27,8 +27,10 @@ void EKF::load(const std::string &filename)
 {
   // Constant Parameters
   get_yaml_eigen("p_b2g", filename, p_b2g_);
+  get_yaml_eigen("p_b2c", filename, p_b2c_);
   get_yaml_eigen("q_b2c", filename, q_b2c_.arr_);
   q_b2c_.normalize();
+
   get_yaml_diag("Qx", filename, Qx_);
   get_yaml_diag("P0", filename, P());
   P0_yaw_ = P()(ErrorState::DQ + 2, ErrorState::DQ + 2);
@@ -607,7 +609,7 @@ void EKF::arucoUpdate(const meas::Aruco &z)
   // rotate goal position from inertial frame to body frame to camera frame
   const Vector2d goal_pos_2d = x().gp;
   const Vector3d goal_pos(goal_pos_2d(0), goal_pos_2d(1), -x().p(2));
-  const Vector3d zhat = q_b2c_.rotp(x().q.rotp(goal_pos));
+  const Vector3d zhat = q_b2c_.rotp(x().q.rotp(goal_pos) - p_b2c_);
   const Vector3d r = z.z - zhat;
 
   const Matrix3d R_b2c = q_b2c_.R();
@@ -644,10 +646,6 @@ void EKF::arucoUpdate(const meas::Aruco &z)
   /// TODO: Saturate r
   if (use_aruco_)
     measUpdate(r_yaw, z.yaw_R, H_yaw);
-  // z_resid_(0) = resid;
-  // H_.setZero();
-  // H_(0, xGOAL_ATT) = 1.;
-  // update(yaw_dims, z_resid_, z_R_, H_);
 }
 
 void EKF::initGoal(const meas::Aruco& z)
@@ -656,26 +654,15 @@ void EKF::initGoal(const meas::Aruco& z)
   const Eigen::Matrix3d R_b2c = q_b2c_.R();
   const Eigen::Matrix3d R_I2b = x().q.R();
   const Vector3d p_g_c_c = z.z;
-  // const Vector3d p_g_v_v =
-      // R_I_b.transpose() * (R_b_c.transpose() * p_g_c_c + p_b_c_);
   const Vector3d p_g_v_v =
-      R_I2b.transpose() * (R_b2c.transpose() * p_g_c_c);
+      R_I2b.transpose() * (R_b2c.transpose() * p_g_c_c + p_b2c_);
   x().gp = p_g_v_v.head<2>();
-  //xhat_.segment<2>(xGOAL_VEL) = 0.;
 
   // Janky way to get ArUco yaw
-  // quat::Quatd q_c_a_meas = x_c2a_meas.q_;
-  // quat::Quatd q_I_b =
-      // quat::Quatd(xhat_(xATT + 0), xhat_(xATT + 1), xhat_(xATT + 2));
-  // quat::Quatd q_a_g = quat::Quatd(M_PI, 0., M_PI / 2.);
-  // quat::Quatd q_I_g_meas = q_I_b * q_b_c_ * q_c_a_meas * q_a_g;
-  // const double yaw_meas = q_I_g_meas.yaw();
-
   quat::Quatd q_a2g = quat::Quatd(M_PI, 0., M_PI / 2.);
   quat::Quatd q_I2g_meas = x().q * q_b2c_ * z.q_c2a * q_a2g;
   const double yaw_meas = q_I2g_meas.euler()(2);
   x().gatt = yaw_meas;
-  // xhat_(xGOAL_OMEGA) = 0.;
 
   // P should already be initialized
   goal_initialized_ = true;

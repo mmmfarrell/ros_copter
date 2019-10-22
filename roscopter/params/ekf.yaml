@@ -85,8 +85,8 @@ lambda: [1.0, 1.0, 1.0,       # pos
 
 # Constant Parameeters
 p_b2g: [0, 0, 0] # position from body frame to gps frame
-# p_b_c: [0., 0., 0.] # TODO
-q_b2c: [0.7071, 0, 0, 0.7071]
+p_b2c: [0., 0., 0.] # position from bodr frame to camera frame
+q_b2c: [0.7071, 0, 0, 0.7071] # quaternion rotation from body frame to camera frame
 
 # Initial State
 manual_ref_lla: false # Use manual ref_lla or use first lla from gps
