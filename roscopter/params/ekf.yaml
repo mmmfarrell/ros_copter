@@ -47,7 +47,8 @@ P0: [10.0, 10.0, 10.0, # pos
      100.0, # reference altitude
      1.0, 1.0, 1.0, # aruco position
      1.0, 1.0,      # aruco velocity
-     1.0]           # aruco attitude
+     1.0,           # aruco attitude
+     1.0]           # aruco angular vel
 
 ## Additive Process Noise
 Qx: [0.000, 0.000, 0.000,       # pos
@@ -60,7 +61,8 @@ Qx: [0.000, 0.000, 0.000,       # pos
      1.0,                       # reference altitude
      0.0001, 0.0001, 0.0001,             # aruco position
      0.0001, 0.0001,               # aruco velocity
-     0.0001]                       # aruco attitude
+     0.0001,                       # aruco attitude
+     0.0001]                       # aruco angular vel
 
 ## Lambda (Partial Update)
 # 1.0 = use full update
@@ -74,7 +76,8 @@ lambda: [1.0, 1.0, 1.0,       # pos
          0.3,                 # reference altitude
          1.0, 1.0, 1.0,       # aruco position
          1.0, 1.0,            # aruco velocity
-         1.0]                 # aruco attitude
+         1.0,                 # aruco attitude
+         1.0]                 # aruco angular vel
 
 # Constant Parameeters
 p_b2g: [0, 0, 0] # position from body frame to gps frame

@@ -22,6 +22,7 @@ StateType = np.dtype([
 	('gp', Vec3),
 	('gv', Vec2),
 	('gatt', f64),
+	('gw', f64),
 	('a', Vec3),
 	('w', Vec3),
 	('euler', Vec3)
@@ -29,7 +30,7 @@ StateType = np.dtype([
 
 CovType = np.dtype([
 	('t', f64),
-	('P', (f64, (23, 23)))
+	('P', (f64, (24, 24)))
 ])
 
 RefType = np.dtype([

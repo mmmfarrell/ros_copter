@@ -171,6 +171,7 @@ def plotArucoVelocity():
 def plotArucoAttitude():
     f = plt.figure()
     plt.suptitle('Aruco Attitude')
+    plt.subplot(2, 1, 1)
     plt.plot(data.x['t'], data.x['gatt'][:], label=r"$\hat{x}$")
     if plotCov:
         plt.plot(data.cov['t'], data.x['gatt'][:] +
@@ -178,6 +179,13 @@ def plotArucoAttitude():
         plt.plot(data.cov['t'], data.x['gatt'][:] -
                 2.0*np.sqrt(data.cov['P'][:, 22,22]), '-k', alpha=0.3)
     plt.legend()
+    plt.subplot(2, 1, 2)
+    plt.plot(data.x['t'], data.x['gw'][:], label=r"$\hat{x}$")
+    if plotCov:
+        plt.plot(data.cov['t'], data.x['gw'][:] +
+                2.0*np.sqrt(data.cov['P'][:, 23,23]), '-k', alpha=0.3)
+        plt.plot(data.cov['t'], data.x['gw'][:] -
+                2.0*np.sqrt(data.cov['P'][:, 23,23]), '-k', alpha=0.3)
     pw.addPlot('Aruco Att', f)
 
 def plotZVRes():

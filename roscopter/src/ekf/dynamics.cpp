@@ -32,13 +32,15 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
       // dx.gp = -x.q.rota(x.v);
       dx.gp = goal_vel_I - x.q.rota(x.v);
       dx.gv.setZero();
-      dx.gatt = 0.;
+      dx.gatt = x.gw;
+      dx.gw = 0.;
     }
     else
     {
       dx.gp.setZero();
       dx.gv.setZero();
       dx.gatt = 0.;
+      dx.gw = 0.;
     }
 
     CHECK_NAN(dx.arr);
@@ -73,6 +75,8 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
           const Eigen::Matrix2d dR_v2g_dTheta = dR2DdTheta(x.gatt);
           A_.block<2, 2>(DX::DGP, DX::DGV) = R_I2g.transpose();
           A_.block<2, 1>(DX::DGP, DX::DGATT) = dR_v2g_dTheta.transpose() * x.gv;
+
+          A_(DX::DGATT, DX::DGW) =  1.;
         }
 
         CHECK_NAN(A_); CHECK_NAN(B_);

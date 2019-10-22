@@ -25,8 +25,9 @@ public:
         DGP = 17,
         DGV = 20,
         DGATT = 22,
-        NDX = 23,
-        SIZE = 23
+        DGW = 23,
+        NDX = 24,
+        SIZE = 24
     };
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Eigen::Matrix<double, SIZE, 1> arr;
@@ -41,6 +42,7 @@ public:
     Eigen::Map<Eigen::Vector3d> gp;
     Eigen::Map<Eigen::Vector2d> gv;
     double& gatt;
+    double& gw;
 
     ErrorState();
     ErrorState(const ErrorState& obj);
@@ -90,9 +92,10 @@ public:
       GP = 19, // Goal position
       GV = 22, // Goal velocity
       GATT = 24, // Goal yaw attitude
+      GW = 25, // Goal yaw angular velocity
       A = 25,
       W = 28,
-      NX = 24, // number of states
+      NX = 25, // number of states
       SIZE = 1 + NX + 6
   };
   Eigen::Matrix<double, SIZE, 1> arr;
@@ -113,6 +116,7 @@ public:
   Eigen::Map<Eigen::Vector3d> gp;
   Eigen::Map<Eigen::Vector2d> gv;
   double& gatt;
+  double& gw;
 
   State();
   State(const State& other);
@@ -138,6 +142,7 @@ public:
       out.gp.setZero();
       out.gv.setZero();
       out.gatt = 0.;
+      out.gw = 0.;
       return out;
   }
 
