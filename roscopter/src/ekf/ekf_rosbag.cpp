@@ -96,8 +96,8 @@ void ROSbagParser::parseBag()
             ekf_.statusCallback(m.instantiate<rosflight_msgs::Status>());
         else if (m.isType<sensor_msgs::FluidPressure>() && m.getTopic().compare(baro_topic_) == 0)
             ekf_.baroCallback(m.instantiate<sensor_msgs::FluidPressure>());
-        else if (m.isType<sensor_msgs::Range>() && m.getTopic().compare(range_topic_) == 0)
-            ekf_.rangeCallback(m.instantiate<sensor_msgs::Range>());
+        // else if (m.isType<sensor_msgs::Range>() && m.getTopic().compare(range_topic_) == 0)
+            // ekf_.rangeCallback(m.instantiate<sensor_msgs::Range>());
         else if (m.isType<geometry_msgs::PoseStamped>() && m.getTopic().compare(pose_topic_) == 0)
             ekf_.poseCallback(m.instantiate<geometry_msgs::PoseStamped>());
         else if (m.isType<nav_msgs::Odometry>() && m.getTopic().compare(odom_topic_) == 0)

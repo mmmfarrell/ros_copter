@@ -55,15 +55,18 @@ void EKF_ROS::initROS()
   init(parameter_filename);
 
   odometry_pub_ = nh_.advertise<nav_msgs::Odometry>("odom", 1);
+  goal_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("goal_odom_est", 1);
   euler_pub_ = nh_.advertise<geometry_msgs::Vector3Stamped>("euler_degrees", 1);
   imu_bias_pub_ = nh_.advertise<sensor_msgs::Imu>("imu_bias", 1);
   is_flying_pub_ = nh_.advertise<std_msgs::Bool>("is_flying", 1);
 
   imu_sub_ = nh_.subscribe("imu", 100, &EKF_ROS::imuCallback, this);
+  status_sub_ = nh_.subscribe("status", 100, &EKF_ROS::statusCallback, this);
   baro_sub_ = nh_.subscribe("baro", 100, &EKF_ROS::baroCallback, this);
   pose_sub_ = nh_.subscribe("pose", 10, &EKF_ROS::poseCallback, this);
   odom_sub_ = nh_.subscribe("reference", 10, &EKF_ROS::odomCallback, this);
   gnss_sub_ = nh_.subscribe("gnss", 10, &EKF_ROS::gnssCallback, this);
+  aruco_sub_ = nh_.subscribe("aruco", 10, &EKF_ROS::arucoCallback, this);
 
 #ifdef UBLOX
   ublox_gnss_sub_ = nh_.subscribe("ublox_gnss", 10, &EKF_ROS::gnssCallbackUblox, this);
@@ -166,6 +169,32 @@ void EKF_ROS::publishEstimates(const sensor_msgs::ImuConstPtr &msg)
   imu_bias_msg_.linear_acceleration.z = state_est.ba(2);
 
   imu_bias_pub_.publish(imu_bias_msg_);
+
+  // Pub Goal state Estimates
+  if (ekf_.goalInitialized())
+  {
+    goal_odom_msg_.header = msg->header;
+
+    goal_odom_msg_.pose.pose.position.x = state_est.gp(0);
+    goal_odom_msg_.pose.pose.position.y = state_est.gp(1);
+    goal_odom_msg_.pose.pose.position.z = state_est.gp(2);
+
+    const quat::Quatd q_I_g(0., 0., state_est.gatt);
+    goal_odom_msg_.pose.pose.orientation.w = q_I_g.w();
+    goal_odom_msg_.pose.pose.orientation.x = q_I_g.x();
+    goal_odom_msg_.pose.pose.orientation.y = q_I_g.y();
+    goal_odom_msg_.pose.pose.orientation.z = q_I_g.z();
+
+    goal_odom_msg_.twist.twist.linear.x = 0.;
+    goal_odom_msg_.twist.twist.linear.y = 0.;
+    goal_odom_msg_.twist.twist.linear.z = 0.;
+
+    goal_odom_msg_.twist.twist.angular.x = 0.;
+    goal_odom_msg_.twist.twist.angular.y = 0.;
+    goal_odom_msg_.twist.twist.angular.z = 0.;
+
+    goal_odom_pub_.publish(goal_odom_msg_);
+  }
 
   // Only publish is_flying is true once
   if (!is_flying_)

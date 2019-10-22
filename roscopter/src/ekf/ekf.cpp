@@ -87,6 +87,8 @@ void EKF::load(const std::string &filename)
 
   get_yaml_eigen("x0", filename, x0_.arr());
 
+  goal_initialized_ = false;
+
   initLog(filename);
 }
 
@@ -592,6 +594,12 @@ void EKF::zeroVelUpdate(double t)
 
 void EKF::arucoUpdate(const meas::Aruco &z)
 {
+  if (!goal_initialized_)
+  {
+    initGoal(z);
+    std::cout << "Goal Initialized" << std::endl;
+    return;
+  }
   // TODO account for positional offset of camera
 
   // rotate goal position from inertial frame to body frame to camera frame
@@ -636,6 +644,37 @@ void EKF::arucoUpdate(const meas::Aruco &z)
   // H_.setZero();
   // H_(0, xGOAL_ATT) = 1.;
   // update(yaw_dims, z_resid_, z_R_, H_);
+}
+
+void EKF::initGoal(const meas::Aruco& z)
+{
+  // Get position of goal w.r.t vehicle frame, expressed in vehicle frame
+  const Eigen::Matrix3d R_b2c = q_b2c_.R();
+  const Eigen::Matrix3d R_I2b = x().q.R();
+  const Vector3d p_g_c_c = z.z;
+  // const Vector3d p_g_v_v =
+      // R_I_b.transpose() * (R_b_c.transpose() * p_g_c_c + p_b_c_);
+  const Vector3d p_g_v_v =
+      R_I2b.transpose() * (R_b2c.transpose() * p_g_c_c);
+  x().gp = p_g_v_v;
+  //xhat_.segment<2>(xGOAL_VEL) = 0.;
+
+  // Janky way to get ArUco yaw
+  // quat::Quatd q_c_a_meas = x_c2a_meas.q_;
+  // quat::Quatd q_I_b =
+      // quat::Quatd(xhat_(xATT + 0), xhat_(xATT + 1), xhat_(xATT + 2));
+  // quat::Quatd q_a_g = quat::Quatd(M_PI, 0., M_PI / 2.);
+  // quat::Quatd q_I_g_meas = q_I_b * q_b_c_ * q_c_a_meas * q_a_g;
+  // const double yaw_meas = q_I_g_meas.yaw();
+
+  quat::Quatd q_a2g = quat::Quatd(M_PI, 0., M_PI / 2.);
+  quat::Quatd q_I2g_meas = x().q * q_b2c_ * z.q_c2a * q_a2g;
+  const double yaw_meas = q_I2g_meas.euler()(2);
+  x().gatt = yaw_meas;
+  // xhat_(xGOAL_OMEGA) = 0.;
+
+  // P should already be initialized
+  goal_initialized_ = true;
 }
 
 void EKF::setRefLla(Vector3d ref_lla)

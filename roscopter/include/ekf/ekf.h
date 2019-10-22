@@ -69,6 +69,7 @@ public:
   void setDisarmed() { armed_ = false; }
 
   bool refLlaSet() { return ref_lla_set_; }
+  bool goalInitialized() { return goal_initialized_; };
 
   void setGroundTempPressure(const double& temp, const double& press);
   bool groundTempPressSet() { return (ground_pressure_ != 0) && (ground_temperature_ != 0); }
@@ -101,6 +102,7 @@ public:
   void zeroVelUpdate(double t);
 
   void arucoUpdate(const meas::Aruco &z);
+  void initGoal(const meas::Aruco &z);
 
   void setRefLla(Eigen::Vector3d ref_lla);
   void wrapAngle(double& ang);
@@ -162,6 +164,8 @@ public:
   double ground_temperature_;
   bool update_baro_;
   double update_baro_vel_thresh_;
+
+  bool goal_initialized_;
 
   // Matrix Workspace
   dxMat A_;

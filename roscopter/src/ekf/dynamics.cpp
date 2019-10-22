@@ -22,8 +22,17 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
     dx.bg.setZero();
     dx.bb = 0.;
     dx.ref = 0.;
-    dx.gp = -x.q.rota(x.v);
-    dx.gatt = 0.;
+
+    if (goal_initialized_)
+    {
+      dx.gp = -x.q.rota(x.v);
+      dx.gatt = 0.;
+    }
+    else
+    {
+      dx.gp.setZero();
+      dx.gatt = 0.;
+    }
 
     CHECK_NAN(dx.arr);
     if (calc_jac)
@@ -48,8 +57,11 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
         B_.block<3,3>(DX::DV, U::A) = I_3x3;
         B_.block<3,3>(DX::DV, U::W) = skew(x.v);
 
-        A_.block<3,3>(DX::DGP, DX::DQ) = R.T * skew(x.v);
-        A_.block<3,3>(DX::DGP, DX::DV) = -R.T;
+        if (goal_initialized_)
+        {
+          A_.block<3,3>(DX::DGP, DX::DQ) = R.T * skew(x.v);
+          A_.block<3,3>(DX::DGP, DX::DV) = -R.T;
+        }
 
         CHECK_NAN(A_); CHECK_NAN(B_);
     }

@@ -100,19 +100,22 @@ private:
   ros::NodeHandle nh_private_;
 
   ros::Subscriber imu_sub_;
+  ros::Subscriber status_sub_;
   ros::Subscriber baro_sub_;
   ros::Subscriber pose_sub_;
   ros::Subscriber odom_sub_;
   ros::Subscriber gnss_sub_;
-  ros::Subscriber status_sub_;
+  ros::Subscriber aruco_sub_;
 
   ros::Publisher odometry_pub_;
+  ros::Publisher goal_odom_pub_;
   ros::Publisher euler_pub_;
   ros::Publisher imu_bias_pub_;
   ros::Publisher is_flying_pub_;
 
   sensor_msgs::Imu imu_bias_msg_;
   nav_msgs::Odometry odom_msg_;
+  nav_msgs::Odometry goal_odom_msg_;
   geometry_msgs::Vector3Stamped euler_msg_;
   std_msgs::Bool is_flying_msg_;
 
