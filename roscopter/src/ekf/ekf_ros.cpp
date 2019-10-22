@@ -185,13 +185,13 @@ void EKF_ROS::publishEstimates(const sensor_msgs::ImuConstPtr &msg)
     goal_odom_msg_.pose.pose.orientation.y = q_I_g.y();
     goal_odom_msg_.pose.pose.orientation.z = q_I_g.z();
 
-    goal_odom_msg_.twist.twist.linear.x = 0.;
-    goal_odom_msg_.twist.twist.linear.y = 0.;
+    goal_odom_msg_.twist.twist.linear.x = state_est.gv(0);
+    goal_odom_msg_.twist.twist.linear.y = state_est.gv(1);
     goal_odom_msg_.twist.twist.linear.z = 0.;
 
     goal_odom_msg_.twist.twist.angular.x = 0.;
     goal_odom_msg_.twist.twist.angular.y = 0.;
-    goal_odom_msg_.twist.twist.angular.z = 0.;
+    goal_odom_msg_.twist.twist.angular.z = state_est.gw;
 
     goal_odom_pub_.publish(goal_odom_msg_);
   }
