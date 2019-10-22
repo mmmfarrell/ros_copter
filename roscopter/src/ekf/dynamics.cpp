@@ -26,11 +26,11 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
     if (goal_initialized_)
     {
       const Eigen::Matrix2d R_I2g = rotm2dItoB(x.gatt);
-      const Eigen::Vector2d goal_vel_I_2d = R_I2g.transpose() * x.gv;
-      const Eigen::Vector3d goal_vel_I(goal_vel_I_2d(0), goal_vel_I_2d(1), 0.);
+      const Eigen::Vector2d goal_vel_I = R_I2g.transpose() * x.gv;
+      // const Eigen::Vector3d goal_vel_I(goal_vel_I_2d(0), goal_vel_I_2d(1), 0.);
 
       // dx.gp = -x.q.rota(x.v);
-      dx.gp = goal_vel_I - x.q.rota(x.v);
+      dx.gp = goal_vel_I - x.q.rota(x.v).head<2>();
       dx.gv.setZero();
       dx.gatt = x.gw;
       dx.gw = 0.;
@@ -68,8 +68,8 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
 
         if (goal_initialized_)
         {
-          A_.block<3,3>(DX::DGP, DX::DQ) = R.T * skew(x.v);
-          A_.block<3,3>(DX::DGP, DX::DV) = -R.T;
+          A_.block<2,3>(DX::DGP, DX::DQ) = (R.T * skew(x.v)).topRows(2);
+          A_.block<2,3>(DX::DGP, DX::DV) = (-R.T).topRows(2);
 
           const Eigen::Matrix2d R_I2g = rotm2dItoB(x.gatt);
           const Eigen::Matrix2d dR_v2g_dTheta = dR2DdTheta(x.gatt);
