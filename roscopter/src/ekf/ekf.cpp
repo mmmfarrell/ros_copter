@@ -181,15 +181,37 @@ void EKF::propagate(const double &t, const Vector6d &imu, const Matrix6d &R)
   xbuf_.next().x.t = t;
   xbuf_.next().x.imu = imu;
 
+  // Only do matrix math on the active states
+  int num_states;
+  if (goal_initialized_)
+  {
+    const int num_landmarks = landmark_ids_.size();
+    num_states = ErrorState::DLMS + 3 * num_landmarks;
+  }
+  else
+  {
+    num_states = ErrorState::DGP;
+  }
+
+  auto Asmall = A_.topLeftCorner(num_states, num_states);
+  auto Bsmall = B_.topRows(num_states);
+  auto Ismall = I_BIG.topLeftCorner(num_states, num_states);
+  auto Psmall = P().topLeftCorner(num_states, num_states);
+
   // discretize jacobians (first order)
-  A_ = I_BIG + A_*dt;
-  B_ = B_*dt;
+  Asmall = Ismall + Asmall*dt;
+  Bsmall = Bsmall*dt;
+
   CHECK_NAN(P());
   CHECK_NAN(A_);
   CHECK_NAN(B_);
   CHECK_NAN(Qx_);
-  xbuf_.next().P = A_*P()*A_.T + B_*R*B_.T + Qx_*dt*dt; // covariance propagation
+
+  xbuf_.next().P.setZero();
+  xbuf_.next().P.topLeftCorner(num_states, num_states) =
+    Asmall*Psmall*Asmall.T + Bsmall*R*Bsmall.T + Qx_*dt*dt; // covariance propagation
   CHECK_NAN(xbuf_.next().P);
+
   xbuf_.advance();
   Qu_ = R; // copy because we might need it later.
 
@@ -275,14 +297,40 @@ meas::MeasSet::iterator EKF::getOldestNewMeas()
 
 bool EKF::measUpdate(const VectorXd &res, const MatrixXd &R, const MatrixXd &H)
 {
+  int num_states;
+  if (goal_initialized_)
+  {
+    const int num_landmarks = landmark_ids_.size();
+    num_states = ErrorState::DLMS + 3 * num_landmarks;
+  }
+  else
+  {
+    num_states = ErrorState::DGP;
+  }
+
   int size = res.rows();
   auto K = K_.leftCols(size);
 
+  // Create small versions of each matrix to only do math on valid states
+  // Note this is not necessary. Estimator works great without this, it just
+  // speeds it up a bunch when there are consistently less landmarks tracked
+  // than MAXLANDMARKS
+  auto Ksmall = K.topRows(num_states);
+  auto Hsmall = H.leftCols(num_states);
+  auto Psmall = P().topLeftCorner(num_states, num_states);
+  // auto xsmall = x().topRows(num_states);
+  // auto lam_vec_small = lambda_vec_.topRows(num_states);
+  auto lam_mat_small = lambda_mat_.topLeftCorner(num_states, num_states);
+  auto Ismall = I_BIG.topLeftCorner(num_states, num_states);
+
+
   ///TODO: perform covariance gating
-  MatrixXd innov = (H*P()*H.T + R).inverse();
+  // MatrixXd innov = (H*P()*H.T + R).inverse();
+  MatrixXd innov = (Hsmall*Psmall*Hsmall.T + R).inverse();
 
   CHECK_NAN(H); CHECK_NAN(R); CHECK_NAN(P());
-  K = P() * H.T * innov;
+  // K = P() * H.T * innov;
+  Ksmall = Psmall * Hsmall.T * innov;
   CHECK_NAN(K);
 
   if (enable_partial_update_)
@@ -290,15 +338,23 @@ bool EKF::measUpdate(const VectorXd &res, const MatrixXd &R, const MatrixXd &H)
     // Apply Fixed Gain Partial update per
     // "Partial-Update Schmidt-Kalman Filter" by Brink
     // Modified to operate inline and on the manifold
+
+    // Here we do not operate on a small version of x because only the full
+    // version has been overloaded for a boxplus
     x() += lambda_vec_.asDiagonal() * K * res;
-    dxMat ImKH = I_BIG - K*H;
-    P() += lambda_mat_.cwiseProduct(ImKH*P()*ImKH.T + K*R*K.T - P());
+    // dxMat ImKH = I_BIG - K*H;
+    // P() += lambda_mat_.cwiseProduct(ImKH*P()*ImKH.T + K*R*K.T - P());
+    // xsmall += lam_vec_small.asDiagonal() * K * res;
+    auto ImKH = Ismall - Ksmall*Hsmall;
+    Psmall += lam_mat_small.cwiseProduct(ImKH*Psmall*ImKH.T + Ksmall*R*Ksmall.T - Psmall);
   }
   else
   {
     x() += K * res;
-    dxMat ImKH = I_BIG - K*H;
-    P() = ImKH*P()*ImKH.T + K*R*K.T;
+    // dxMat ImKH = I_BIG - K*H;
+    // P() = ImKH*P()*ImKH.T + K*R*K.T;
+    auto ImKH = Ismall - Ksmall*Hsmall;
+    Psmall += ImKH*Psmall*ImKH.T + Ksmall*R*Ksmall.T;
   }
 
   wrapAngle(x().gatt);
