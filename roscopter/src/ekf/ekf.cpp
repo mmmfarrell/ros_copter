@@ -193,6 +193,8 @@ void EKF::propagate(const double &t, const Vector6d &imu, const Matrix6d &R)
   xbuf_.advance();
   Qu_ = R; // copy because we might need it later.
 
+  wrapAngle(x().gatt);
+
   if (enable_log_)
   {
     logs_[LOG_STATE]->logVectors(x().arr, x().q.euler());
@@ -299,6 +301,7 @@ bool EKF::measUpdate(const VectorXd &res, const MatrixXd &R, const MatrixXd &H)
     P() = ImKH*P()*ImKH.T + K*R*K.T;
   }
 
+  wrapAngle(x().gatt);
   CHECK_NAN(P());
   return true;
 }
@@ -408,7 +411,6 @@ void EKF::landmarksCallback(const double& t, const ImageFeat& z)
   {
     return;
   }
-  std::cout << "EKF Landmarks callback" << std::endl;
 
   std::list<int>::iterator it = landmark_ids_.begin();
 
@@ -444,8 +446,6 @@ void EKF::landmarksCallback(const double& t, const ImageFeat& z)
       }
     }
   }
-  std::cout << "DONE EKF Landmarks callback" << std::endl;
-
 }
 
 void EKF::printLmIDs()
