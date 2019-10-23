@@ -39,7 +39,7 @@ use_zero_vel: true
 
 R_zero_vel: [0.001, 0.001, 0.001, # vel
               0.001] # Altitude
-R_pixel_lms: [4., 4.]
+R_pixel_lms: [9., 9.]
 
 max_landmarks: 10
 
