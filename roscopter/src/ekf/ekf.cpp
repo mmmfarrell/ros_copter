@@ -485,6 +485,7 @@ void EKF::initLandmark(const int& id, const Vector2d& pix)
   // initialize estimator xhat and phat
   const int LM_IDX = ErrorState::DLMS + 3 * lm_idx;
   P().block<3, 3>(LM_IDX, LM_IDX) = P0_lms_.asDiagonal();
+  Qx_.block<3, 3>(LM_IDX, LM_IDX) = Qx_lms_.asDiagonal();
 
   const Eigen::Matrix3d R_b2c = q_b2c_.R();
   const Eigen::Matrix3d R_I2b = x().q.R();
@@ -542,6 +543,12 @@ void EKF::removeLandmark(const int& lm_idx, const std::list<int>::iterator it)
   // Zero out the unintialized covariance terms (necessary)
   P().bottomRightCorner(3, E::SIZE).setZero();
   P().bottomRightCorner(E::SIZE, 3).setZero();
+
+  Qx_.block(LM_IDX, 0, num_rows, E::SIZE) = Qx_.bottomRightCorner(num_rows, E::SIZE);
+  Qx_.block(0, LM_IDX, E::SIZE, num_cols) = Qx_.bottomRightCorner(E::SIZE, num_cols);
+  // Zero out the unintialized covariance terms (necessary)
+  Qx_.bottomRightCorner(3, E::SIZE).setZero();
+  Qx_.bottomRightCorner(E::SIZE, 3).setZero();
 }
 
 void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)

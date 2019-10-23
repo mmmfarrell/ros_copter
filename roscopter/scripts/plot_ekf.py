@@ -188,6 +188,21 @@ def plotArucoAttitude():
                 2.0*np.sqrt(data.cov['P'][:, 22,22]), '-k', alpha=0.3)
     pw.addPlot('Aruco Att', f)
 
+def plotLandmarks():
+    f = plt.figure()
+    plt.suptitle('Landmarks')
+    for i in range(3):
+        for j in range(4):
+            plt.subplot(3, 4, 1 + 4*i + j)
+            plt.plot(data.x['t'], data.x['lms'][:, j, i], label=r"$\hat{x}$")
+            if plotCov:
+                lm_idx = 23 + 3 * j
+                plt.plot(data.cov['t'], data.x['lms'][:, j, i] +
+                        2.0*np.sqrt(data.cov['P'][:, lm_idx + i, lm_idx + i]), '-k', alpha=0.3)
+                plt.plot(data.cov['t'], data.x['lms'][:, j, i] -
+                        2.0*np.sqrt(data.cov['P'][:, lm_idx + i, lm_idx + i]), '-k', alpha=0.3)
+    pw.addPlot('Landmarks', f)
+
 def plotZVRes():
     f = plt.figure()
     plt.suptitle('ZeroVel')
@@ -282,6 +297,7 @@ def plotResults(directory):
     plotArucoPosition()
     plotArucoVelocity()
     plotArucoAttitude()
+    plotLandmarks()
 
     plotZVRes()
     plotBaroRes()
