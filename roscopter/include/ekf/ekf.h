@@ -179,6 +179,10 @@ public:
   dxuMat K_;
   ErrorState dx_;
 
+  Eigen::Vector3d P0_lms_;
+  Eigen::Vector3d Qx_lms_;
+  Eigen::Vector3d lambda_lms_;
+
   // Partial Update
   dxVec lambda_vec_;
   dxMat lambda_mat_;
@@ -201,6 +205,10 @@ public:
   std::deque<meas::Mocap, Eigen::aligned_allocator<meas::Mocap>> mocap_meas_buf_;
   std::deque<meas::Gnss, Eigen::aligned_allocator<meas::Gnss>> gnss_meas_buf_;
   std::deque<meas::ZeroVel, Eigen::aligned_allocator<meas::ZeroVel>> zv_meas_buf_;
+
+  // Landmarks stuff
+  int max_landmarks_;
+  std::list<int> landmark_ids_;
 };
 
 }

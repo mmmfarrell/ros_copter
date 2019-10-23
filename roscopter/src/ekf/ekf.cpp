@@ -26,6 +26,12 @@ EKF::~EKF()
 void EKF::load(const std::string &filename)
 {
   // Constant Parameters
+  get_yaml_node("max_landmarks", filename, max_landmarks_);
+  if (max_landmarks_ > ErrorState::MAX_LMS)
+    max_landmarks_ = ErrorState::MAX_LMS;
+  else if (max_landmarks_ < 0)
+    max_landmarks_ = 0;
+
   get_yaml_eigen("p_b2g", filename, p_b2g_);
   get_yaml_eigen("p_b2c", filename, p_b2c_);
   get_yaml_eigen("q_b2c", filename, q_b2c_.arr_);
@@ -35,12 +41,14 @@ void EKF::load(const std::string &filename)
   Eigen::Matrix<double, ErrorState::DLMS, ErrorState::DLMS> Qx_states;
   get_yaml_diag("Qx", filename, Qx_states);
   Qx_.topLeftCorner(ErrorState::DLMS, ErrorState::DLMS) = Qx_states;
+  get_yaml_eigen("Qx_lms", filename, Qx_lms_);
 
   P().setZero();
   Eigen::Matrix<double, ErrorState::DLMS, ErrorState::DLMS> P0_states;
   get_yaml_diag("P0", filename, P0_states);
   P().topLeftCorner(ErrorState::DLMS, ErrorState::DLMS) = P0_states;
   P0_yaw_ = P()(ErrorState::DQ + 2, ErrorState::DQ + 2);
+  get_yaml_eigen("P0_lms", filename, P0_lms_);
 
   get_yaml_diag("R_zero_vel", filename, R_zero_vel_);
 
@@ -49,6 +57,13 @@ void EKF::load(const std::string &filename)
   Eigen::Matrix<double, ErrorState::DLMS, 1> lambda_states;
   get_yaml_eigen("lambda", filename, lambda_states);
   lambda_vec_.head(ErrorState::DLMS) = lambda_states;
+  get_yaml_eigen("lambda_lms", filename, lambda_lms_);
+  for (unsigned int i = 0; i < max_landmarks_; ++i)
+  {
+    unsigned int lm_idx = ErrorState::DLMS + 3 * i; 
+    lambda_vec_.segment<3>(lm_idx) = lambda_lms_;
+  }
+
   const dxVec ones = dxVec::Constant(1.0);
   lambda_mat_ = ones * lambda_vec_.transpose() + lambda_vec_ * ones.transpose() -
                 lambda_vec_ * lambda_vec_.transpose();
