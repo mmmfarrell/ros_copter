@@ -1,7 +1,7 @@
 ## Post-Process Information
 # bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/rock_canyon/rock_canyon_aruco2.bag"
-# bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/mocap1.bag"
-bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/moving_cart_control/jacob_circle_full_aruco.bag"
+bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/mocap1.bag"
+# bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/moving_cart_control/jacob_circle_full_aruco.bag"
 status_topic: "/status"
 imu_topic: "/imu/data"
 baro_topic: "/baro"

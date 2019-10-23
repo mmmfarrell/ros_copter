@@ -207,7 +207,7 @@ void EKF::propagate(const double &t, const Vector6d &imu, const Matrix6d &R)
   CHECK_NAN(B_);
   CHECK_NAN(Qx_);
 
-  xbuf_.next().P.setZero();
+  xbuf_.next().P = P();
   xbuf_.next().P.topLeftCorner(num_states, num_states) =
     Asmall*Psmall*Asmall.T + Bsmall*R*Bsmall.T + Qx_*dt*dt; // covariance propagation
   CHECK_NAN(xbuf_.next().P);
