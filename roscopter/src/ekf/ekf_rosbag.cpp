@@ -30,6 +30,8 @@ void ROSbagParser::loadParams()
   get_yaml_node("odom_topic", param_filename_, odom_topic_);
   get_yaml_node("gnss_topic", param_filename_, gnss_topic_);
   get_yaml_node("aruco_topic", param_filename_, aruco_topic_);
+  get_yaml_node("landmarks_topic", param_filename_, lms_topic_);
+
   get_yaml_node("ublox_gnss_topic", param_filename_, ublox_gnss_topic_);
   get_yaml_node("inertial_sense_gnss_topic", param_filename_, inertial_sense_gnss_topic_);
   get_yaml_node("start_time", param_filename_, start_);
@@ -106,6 +108,8 @@ void ROSbagParser::parseBag()
           ekf_.gnssCallback(m.instantiate<rosflight_msgs::GNSS>());
         else if (m.isType<geometry_msgs::PoseStamped>() && m.getTopic().compare(aruco_topic_) == 0)
           ekf_.arucoCallback(m.instantiate<geometry_msgs::PoseStamped>());
+        else if (m.isType<feature_tracker::ImageFeatures>() && m.getTopic().compare(lms_topic_) == 0)
+          ekf_.landmarksCallback(m.instantiate<feature_tracker::ImageFeatures>());
 #ifdef UBLOX
         else if (m.isType<ublox::PosVelEcef>() && m.getTopic().compare(ublox_gnss_topic_) == 0)
           ekf_.gnssCallbackUblox(m.instantiate<ublox::PosVelEcef>());

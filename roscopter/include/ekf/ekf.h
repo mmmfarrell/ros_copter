@@ -98,7 +98,13 @@ public:
   void arucoCallback(const double& t, const Eigen::Vector3d& z,
                      const Eigen::Matrix3d& R, const quat::Quatd& q_c2a,
                      const Matrix1d& yaw_R);
+
   void landmarksCallback(const double& t, const ImageFeat& z);
+
+  void printLmIDs();
+  void printLmXhat();
+  void printLmPhat();
+
   void initLandmark(const int& id, const Vector2d& pix);
   void removeLandmark(const int& lm_idx, const std::list<int>::iterator it);
   void landmarkUpdate(const int& idx, const Vector2d& pix);
@@ -170,6 +176,7 @@ public:
   quat::Quatd q_n2I_;
 
   Eigen::Matrix4d R_zero_vel_;
+  Eigen::Matrix2d R_lms_;
 
   bool ref_lla_set_;
   double ref_lat_radians_;
@@ -208,6 +215,7 @@ public:
   bool use_gnss_;
   bool use_zero_vel_;
   bool use_aruco_;
+  bool use_lms_;
 
   bool enable_out_of_order_;
   bool enable_partial_update_;

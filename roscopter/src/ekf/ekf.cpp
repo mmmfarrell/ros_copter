@@ -55,6 +55,7 @@ void EKF::load(const std::string &filename)
   get_yaml_eigen("P0_lms", filename, P0_lms_);
 
   get_yaml_diag("R_zero_vel", filename, R_zero_vel_);
+  get_yaml_diag("R_pixel_lms", filename, R_lms_);
 
   // Partial Update
   lambda_vec_.setZero();
@@ -81,6 +82,7 @@ void EKF::load(const std::string &filename)
   get_yaml_node("use_range", filename, use_range_);
   get_yaml_node("use_zero_vel", filename, use_zero_vel_);
   get_yaml_node("use_aruco", filename, use_aruco_);
+  get_yaml_node("use_lms", filename, use_lms_);
 
   // Armed Check
   get_yaml_node("enable_arm_check", filename, enable_arm_check_);
@@ -152,6 +154,7 @@ void EKF::initialize(double t)
   x().gv.setZero();
   x().gatt = 0.;
   x().gw = 0.;
+  x().lms.setZero();
   x().a = -gravity;
   x().w.setZero();
   is_flying_ = false;
@@ -405,6 +408,7 @@ void EKF::landmarksCallback(const double& t, const ImageFeat& z)
   {
     return;
   }
+  std::cout << "EKF Landmarks callback" << std::endl;
 
   std::list<int>::iterator it = landmark_ids_.begin();
 
@@ -440,7 +444,34 @@ void EKF::landmarksCallback(const double& t, const ImageFeat& z)
       }
     }
   }
+  std::cout << "DONE EKF Landmarks callback" << std::endl;
 
+}
+
+void EKF::printLmIDs()
+{
+  std::list<int>::iterator it;
+
+  std::cout << "List: ";
+  for (it = landmark_ids_.begin(); it != landmark_ids_.end(); it++)
+  {
+    std::cout << *it << ", ";
+  }
+  std::cout << std::endl;
+}
+
+void EKF::printLmXhat()
+{
+  PRINTMAT(x().lms);
+  // std::cout << "lm xhat: " << std::endl
+            // << xhat_.bottomRows(MAXLANDMARKS * 3) << std::endl;
+}
+
+void EKF::printLmPhat()
+{
+  std::cout << "lm Phat: " << std::endl
+            << P().bottomRightCorner(ErrorState::MAX_LMS * 3, ErrorState::MAX_LMS * 3)
+            << std::endl;
 }
 
 void EKF::initLandmark(const int& id, const Vector2d& pix)
@@ -472,9 +503,8 @@ void EKF::initLandmark(const int& id, const Vector2d& pix)
   const Eigen::Vector3d p_i_v_v = p_i_c_v + p_c_b_I;
 
   const double theta_g = x().gatt;
-  const Eigen::Matrix2d R_v2g_2d = rotm2dItoB(theta_g);
   Eigen::Matrix3d R_v2g = Eigen::Matrix3d::Identity();
-  R_v2g.topLeftCorner(2, 2) = R_v2g_2d;
+  R_v2g.topLeftCorner(2, 2) = rotm2dItoB(theta_g);
 
   // Eigen::Vector3d p_g_v_v = xhat_.segment<3>(xGOAL_POS);
   Eigen::Vector3d p_g_v_v(x().gp(0), x().gp(1), -x().p(2));
@@ -482,7 +512,7 @@ void EKF::initLandmark(const int& id, const Vector2d& pix)
 
   // Init state with estimate
   // xhat_.block<3, 1>(xLM_IDX, 0) = p_i_g_g;
-  x().lms.block<3, 1>(0, LM_IDX) = p_i_g_g.transpose();
+  x().lms.block<3, 1>(0, lm_idx) = p_i_g_g.transpose();
 }
 
 void EKF::removeLandmark(const int& lm_idx, const std::list<int>::iterator it)
@@ -576,6 +606,12 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
   // const double dpx_dpsi =
       // (fx * RdRdPsip(0) / p_i_c_c(2)) -
       // (fx * RdRdPsip(2) * p_i_c_c(0) / p_i_c_c(2) / p_i_c_c(2));
+  const Eigen::Matrix3d blah = -R_b2c * R_I2b * skew(p_i_v_v);
+  const Eigen::Vector3d blah1 = e1.transpose() * blah;
+  const Eigen::Vector3d blah3 = e3.transpose() * blah;
+  const Eigen::Vector3d dpx_dq =
+      (fx * blah1 / p_i_c_c(2)) -
+      (fx * blah3 * p_i_c_c(0) / p_i_c_c(2) / p_i_c_c(2));
 
   const Eigen::Vector3d dpx_dp =
       ((fx * e1.transpose() * R_b2c * R_I2b) / p_i_c_c(2)) -
@@ -583,6 +619,7 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
        (p_i_c_c(2) * p_i_c_c(2)));
 
   H.setZero();
+  H.block<1, 3>(0, E::DQ) = dpx_dq;
   // H(0, Estimator::xATT + 0) = dpx_dphi;
   // H(0, Estimator::xATT + 1) = dpx_dtheta;
   // H(0, Estimator::xATT + 2) = dpx_dpsi;
@@ -598,6 +635,10 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
   // const double dpy_dpsi =
       // (fy * RdRdPsip(1) / p_i_c_c(2)) -
       // (fy * RdRdPsip(2) * p_i_c_c(1) / p_i_c_c(2) / p_i_c_c(2));
+  const Eigen::Vector3d blah2 = e2.transpose() * blah;
+  const Eigen::Vector3d dpy_dq =
+      (fy * blah2 / p_i_c_c(2)) -
+      (fy * blah3 * p_i_c_c(1) / p_i_c_c(2) / p_i_c_c(2));
 
   const Eigen::Vector3d dpy_dp =
       ((fy * e2.transpose() * R_b2c * R_I2b) / p_i_c_c(2)) -
@@ -607,6 +648,7 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
   // H(1, Estimator::xATT + 0) = dpy_dphi;
   // H(1, Estimator::xATT + 1) = dpy_dtheta;
   // H(1, Estimator::xATT + 2) = dpy_dpsi;
+  H.block<1, 3>(1, E::DQ) = dpy_dq;
   H.block<1, 2>(1, E::DGP) = dpy_dp.head(2);
   H(1, E::DP + 2) = -dpy_dp(2);
 
@@ -644,6 +686,10 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
   // z_resid_.head(lm_pix_dims) = pix - lm_pix_zhat.head(lm_pix_dims);
   // z_R_.topLeftCorner(lm_pix_dims, lm_pix_dims) = landmarks_R_;
   // update(lm_pix_dims, z_resid_, z_R_, H_);
+
+  /// TODO: Saturate r
+  if (use_lms_)
+    measUpdate(r, R_lms_, H);
 }
 
 void EKF::baroUpdate(const meas::Baro &z)

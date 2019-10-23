@@ -1,15 +1,17 @@
 ## Post-Process Information
-bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/rock_canyon/rock_canyon_aruco2.bag"
+# bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/rock_canyon/rock_canyon_aruco2.bag"
+bag_name: "/home/mmmfarrell/magicc/catkin_ws/src/bags/mocap1.bag"
 status_topic: "/status"
 imu_topic: "/imu/data"
 baro_topic: "/baro"
 range_topic: ""
-pose_topic: ""
+pose_topic: "/mocap/planck_ned"
 odom_topic: ""
 gnss_topic: ""
 ublox_gnss_topic: ""
 inertial_sense_gnss_topic: "/gps"
 aruco_topic: "/aruco/estimate"
+landmarks_topic: "/image_features"
 
 start_time: 0
 duration: 1000
@@ -26,15 +28,17 @@ enable_log: true
 ## Measurement Processing
 enable_partial_update: true
 enable_out_of_order: false # TODO this isnt fully implemented
-use_mocap: false
+use_mocap: true
 use_gnss: true
 use_baro: true
 use_aruco: true
+use_lms: true
 use_range: false
 use_zero_vel: true
 
 R_zero_vel: [0.001, 0.001, 0.001, # vel
               0.001] # Altitude
+R_pixel_lms: [4., 4.]
 
 max_landmarks: 10
 
