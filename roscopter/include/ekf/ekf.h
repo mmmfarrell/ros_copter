@@ -8,6 +8,7 @@
 
 #include "ekf/state.h"
 #include "ekf/meas.h"
+#include "ekf/image_feat.h"
 #include "roscopter_utils/logger.h"
 #include "roscopter_utils/gnss.h"
 #include "roscopter_utils/yaml.h"
@@ -97,6 +98,10 @@ public:
   void arucoCallback(const double& t, const Eigen::Vector3d& z,
                      const Eigen::Matrix3d& R, const quat::Quatd& q_c2a,
                      const Matrix1d& yaw_R);
+  void landmarksCallback(const double& t, const ImageFeat& z);
+  void initLandmark(const int& id, const Vector2d& pix);
+  void removeLandmark(const int& lm_idx, const std::list<int>::iterator it);
+  void landmarkUpdate(const int& idx, const Vector2d& pix);
 
   void baroUpdate(const meas::Baro &z);
   void rangeUpdate(const meas::Range &z);
@@ -154,10 +159,16 @@ public:
   // Constants
   xform::Xformd x0_;
   Eigen::Vector3d p_b2g_;
+
+  // Camera parameters
+  Eigen::Matrix3d cam_K_;
+  Eigen::Matrix3d cam_K_inv_;
   Eigen::Vector3d p_b2c_;
   quat::Quatd q_b2c_;
+
   xform::Xformd x_e2I_;
   quat::Quatd q_n2I_;
+
   Eigen::Matrix4d R_zero_vel_;
 
   bool ref_lla_set_;

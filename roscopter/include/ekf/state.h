@@ -45,7 +45,7 @@ public:
     Eigen::Map<Eigen::Vector2d> gv;
     double& gatt;
     double& gw;
-    Eigen::Map<Eigen::Matrix<double, MAX_LMS, 3>> lms;
+    Eigen::Map<Eigen::Matrix<double, 3, MAX_LMS>> lms;
 
     ErrorState();
     ErrorState(const ErrorState& obj);
@@ -122,7 +122,7 @@ public:
   Eigen::Map<Eigen::Vector2d> gv;
   double& gatt;
   double& gw;
-  Eigen::Map<Eigen::Matrix<double, MAX_LMS, 3>> lms;
+  Eigen::Map<Eigen::Matrix<double, 3, MAX_LMS>> lms;
 
   State();
   State(const State& other);

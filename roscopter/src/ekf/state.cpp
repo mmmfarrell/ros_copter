@@ -180,7 +180,7 @@ State State::operator+(const Matrix<double, ErrorState::SIZE, 1>& dx) const
     xp.gatt = gatt + dx(ErrorState::DGATT);
     xp.gw = gw + dx(ErrorState::DGW);
 
-    const Eigen::Map<const Eigen::Matrix<double, MAX_LMS, 3>> dx_lms(dx.data() + 23);
+    const Eigen::Map<const Eigen::Matrix<double, 3, MAX_LMS>> dx_lms(dx.data() + 23);
     xp.lms = lms + dx_lms;
 
     return xp;
@@ -200,7 +200,7 @@ State& State::operator+=(const VectorXd& dx)
     gatt += dx(ErrorState::DGATT);
     gw += dx(ErrorState::DGW);
 
-    const Eigen::Map<const Eigen::Matrix<double, MAX_LMS, 3>> dx_lms(dx.data() + 23);
+    const Eigen::Map<const Eigen::Matrix<double, 3, MAX_LMS>> dx_lms(dx.data() + 23);
     lms += dx_lms;
 
     return *this;

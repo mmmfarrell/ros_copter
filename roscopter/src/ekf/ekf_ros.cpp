@@ -67,6 +67,7 @@ void EKF_ROS::initROS()
   odom_sub_ = nh_.subscribe("reference", 10, &EKF_ROS::odomCallback, this);
   gnss_sub_ = nh_.subscribe("gnss", 10, &EKF_ROS::gnssCallback, this);
   aruco_sub_ = nh_.subscribe("aruco", 10, &EKF_ROS::arucoCallback, this);
+  lms_sub_ = nh_.subscribe("image_landmarks", 10, &EKF_ROS::landmarksCallback, this);
 
 #ifdef UBLOX
   ublox_gnss_sub_ = nh_.subscribe("ublox_gnss", 10, &EKF_ROS::gnssCallbackUblox, this);
@@ -332,6 +333,23 @@ void EKF_ROS::arucoCallback(const geometry_msgs::PoseStampedConstPtr& msg)
 
   double t = (msg->header.stamp - start_time_).toSec();
   ekf_.arucoCallback(t, z, aruco_R_, q_c2a, aruco_yaw_R_);
+}
+
+void EKF_ROS::landmarksCallback(const feature_tracker::ImageFeaturesConstPtr& msg)
+{
+  const double t = (msg->header.stamp - start_time_).toSec();
+
+  const int num_lms = msg->num_features;
+  lms_meas_.clear();
+  lms_meas_.reserve(num_lms);
+
+  for (int i = 0; i < num_lms; ++i)
+  {
+    lms_meas_.feat_ids.push_back(msg->ids[i]);
+    lms_meas_.pixs.push_back(Vector2d(msg->px[i], msg->py[i]));
+  }
+
+  ekf_.landmarksCallback(t, lms_meas_);
 }
 
 void EKF_ROS::gnssCallback(const rosflight_msgs::GNSSConstPtr &msg)

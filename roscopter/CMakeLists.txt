@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   rosbag
   roslib
+  feature_tracker
 )
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
@@ -42,6 +43,7 @@ catkin_package(
   INCLUDE_DIRS include ${EIGEN3_INCLUDE_DIRS}
   CATKIN_DEPENDS roscpp rospy dynamic_reconfigure eigen_conversions
     rosflight_msgs rosflight_utils std_msgs nav_msgs sensor_msgs roslib
+    feature_tracker
   DEPENDS EIGEN3
 )
 

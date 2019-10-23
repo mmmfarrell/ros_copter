@@ -90,7 +90,12 @@ lambda_lms: [1.0, 1.0, 0.5]
 
 # Constant Parameeters
 p_b2g: [0, 0, 0] # position from body frame to gps frame
-p_b2c: [0., 0., 0.] # position from bodr frame to camera frame
+
+# Camera Params
+cam_K: [417.448099, 0.0, 298.002664, # Planck cam
+         0.0, 419.52719, 255.051452,
+         0.0, 0.0, 1.0]
+p_b2c: [0., 0., 0.] # position from body frame to camera frame
 q_b2c: [0.7071, 0, 0, 0.7071] # quaternion rotation from body frame to camera frame
 
 # Initial State

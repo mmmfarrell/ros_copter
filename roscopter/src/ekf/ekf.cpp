@@ -33,6 +33,10 @@ void EKF::load(const std::string &filename)
     max_landmarks_ = 0;
 
   get_yaml_eigen("p_b2g", filename, p_b2g_);
+
+  // Camera Parameters
+  get_yaml_eigen("cam_K", filename, cam_K_);
+  cam_K_inv_ = cam_K_.inverse();
   get_yaml_eigen("p_b2c", filename, p_b2c_);
   get_yaml_eigen("q_b2c", filename, q_b2c_.arr_);
   q_b2c_.normalize();
@@ -393,6 +397,253 @@ void EKF::arucoCallback(const double& t, const Eigen::Vector3d& z,
   }
   else
     arucoUpdate(meas::Aruco(t, z, R, q_c2a, yaw_R));
+}
+
+void EKF::landmarksCallback(const double& t, const ImageFeat& z)
+{
+  if (!goal_initialized_)
+  {
+    return;
+  }
+
+  std::list<int>::iterator it = landmark_ids_.begin();
+
+  int idx = 0;
+  int num_landmarks = z.pixs.size();
+  if (num_landmarks > max_landmarks_)
+  {
+    num_landmarks = max_landmarks_;
+  }
+
+  while (idx < num_landmarks)
+  {
+    const int lm_id = z.feat_ids[idx];
+    const Eigen::Vector2d lm_pix = z.pixs[idx];
+    if (it == landmark_ids_.end())
+    {
+      initLandmark(lm_id, lm_pix);
+      idx++;
+    }
+    else
+    {
+      const std::list<int>::iterator prev_lm_it = it;
+      const int expected_lm_id = *prev_lm_it;
+      it++;
+      if (expected_lm_id != lm_id)
+      {
+        removeLandmark(idx, prev_lm_it);
+      }
+      else
+      {
+        landmarkUpdate(idx, lm_pix);
+        idx++;
+      }
+    }
+  }
+
+}
+
+void EKF::initLandmark(const int& id, const Vector2d& pix)
+{
+  // lm_idx is 0 indexed
+  const int lm_idx = landmark_ids_.size();
+
+  // add the id to the list of ids tracked
+  landmark_ids_.push_back(id);
+
+  // initialize estimator xhat and phat
+  const int LM_IDX = ErrorState::DLMS + 3 * lm_idx;
+  P().block<3, 3>(LM_IDX, LM_IDX) = P0_lms_.asDiagonal();
+
+  const Eigen::Matrix3d R_b2c = q_b2c_.R();
+  const Eigen::Matrix3d R_I2b = x().q.R();
+
+  Eigen::Vector3d pix_homo(pix(0), pix(1), 1.);
+  Eigen::Vector3d unit_vec_veh_frame =
+      R_I2b.transpose() * R_b2c.transpose() * cam_K_inv_ * pix_homo;
+
+  const Eigen::Vector3d p_c_b_I = R_I2b * p_b2c_;
+  // const double expected_altitude = xhat_(xGOAL_POS + 2) - p_c_b_I(2);
+  const double expected_altitude = -x().p(2) - p_c_b_I(2);
+
+  Eigen::Vector3d scaled_vec_veh_frame =
+      (expected_altitude / unit_vec_veh_frame(2)) * unit_vec_veh_frame;
+  Eigen::Vector3d p_i_c_v = scaled_vec_veh_frame;
+  const Eigen::Vector3d p_i_v_v = p_i_c_v + p_c_b_I;
+
+  const double theta_g = x().gatt;
+  const Eigen::Matrix2d R_v2g_2d = rotm2dItoB(theta_g);
+  Eigen::Matrix3d R_v2g = Eigen::Matrix3d::Identity();
+  R_v2g.topLeftCorner(2, 2) = R_v2g_2d;
+
+  // Eigen::Vector3d p_g_v_v = xhat_.segment<3>(xGOAL_POS);
+  Eigen::Vector3d p_g_v_v(x().gp(0), x().gp(1), -x().p(2));
+  Eigen::Vector3d p_i_g_g = R_v2g * (p_i_v_v - p_g_v_v);
+
+  // Init state with estimate
+  // xhat_.block<3, 1>(xLM_IDX, 0) = p_i_g_g;
+  x().lms.block<3, 1>(0, LM_IDX) = p_i_g_g.transpose();
+}
+
+void EKF::removeLandmark(const int& lm_idx, const std::list<int>::iterator it)
+{
+  landmark_ids_.erase(it);
+
+  // Move up the bottom rows to cover up the values corresponding to the removed
+  // lm
+  using E = ErrorState;
+  const int LM_IDX = E::DLMS + 3 * lm_idx;
+  const int num_rows = E::SIZE - LM_IDX - 3;
+  const int num_cols = num_rows;
+
+  const int num_lms_right = max_landmarks_ - lm_idx - 1;
+
+  // xhat_.block(LM_IDX, 0, num_rows, 1) = xhat_.bottomRows(num_rows);
+  // // Zero out the unintialized xhat terms (NOT necessary)
+  // xhat_.bottomRows(3).setZero();
+
+  x().lms.block(0, lm_idx, 3, num_lms_right) = x().lms.rightCols(num_lms_right);
+  // Zero out the unintialized xhat terms (NOT necessary)
+  x().lms.rightCols(1).setZero();
+
+  // Move covariance up and then left to preserve cross terms
+  P().block(LM_IDX, 0, num_rows, E::SIZE) = P().bottomRightCorner(num_rows, E::SIZE);
+  P().block(0, LM_IDX, E::SIZE, num_cols) = P().bottomRightCorner(E::SIZE, num_cols);
+  // Zero out the unintialized covariance terms (necessary)
+  P().bottomRightCorner(3, E::SIZE).setZero();
+  P().bottomRightCorner(E::SIZE, 3).setZero();
+}
+
+void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
+{
+  // Landmarks are 0 indexed
+  const int LM_IDX = ErrorState::DLMS + 3 * idx;
+
+  // Camera Params
+  const double fx = cam_K_(0, 0);
+  const double fy = cam_K_(1, 1);
+  const double cx = cam_K_(0, 2);
+  const double cy = cam_K_(1, 2);
+
+  // Constants
+  static const Eigen::Vector3d e1(1., 0., 0.);
+  static const Eigen::Vector3d e2(0., 1., 0.);
+  static const Eigen::Vector3d e3(0., 0., 1.);
+
+  const Eigen::Matrix3d R_b2c = q_b2c_.R();
+  const Eigen::Matrix3d R_I2b = x().q.R();
+
+  const double theta_g = x().gatt;
+  const Eigen::Matrix2d R_I2g_2d = rotm2dItoB(theta_g);
+  Eigen::Matrix3d R_I2g = Eigen::Matrix3d::Identity();
+  R_I2g.topLeftCorner(2, 2) = R_I2g_2d;
+
+  // const Eigen::Vector3d p_i_g_g = x.segment<3>(xLM_IDX);
+  const Eigen::Vector3d p_i_g_g = x().lms.block<3, 1>(0, idx);
+  const Eigen::Vector3d p_i_g_v = R_I2g.transpose() * p_i_g_g;
+
+  // const Eigen::Vector3d p_g_v_v = x.segment<3>(Estimator::xGOAL_POS);
+  Eigen::Vector3d p_g_v_v(x().gp(0), x().gp(1), -x().p(2));
+  const Eigen::Vector3d p_i_v_v = p_i_g_v + p_g_v_v;
+
+  const Eigen::Vector3d p_i_c_c = R_b2c * (R_I2b * p_i_v_v - p_b2c_);
+
+  // Measurement Model
+  const double px_hat = fx * (p_i_c_c(0) / p_i_c_c(2)) + cx;
+  const double py_hat = fy * (p_i_c_c(1) / p_i_c_c(2)) + cy;
+  const Vector2d zhat(px_hat, py_hat);
+  const Vector2d r = pix - zhat;
+
+  using E = ErrorState;
+
+  Eigen::Matrix<double, 2, E::NDX> H;
+  H.setZero();
+
+  // Measurement Model Jacobian
+  // const Eigen::Matrix3d d_R_d_phi = dRIBdPhi(phi, theta, psi);
+  // const Eigen::Matrix3d d_R_d_theta = dRIBdTheta(phi, theta, psi);
+  // const Eigen::Matrix3d d_R_d_psi = dRIBdPsi(phi, theta, psi);
+
+  // const Eigen::Vector3d RdRdPhip = R_b2c * d_R_d_phi * p_i_v_v;
+  // const double dpx_dphi =
+      // (fx * RdRdPhip(0) / p_i_c_c(2)) -
+      // (fx * RdRdPhip(2) * p_i_c_c(0) / p_i_c_c(2) / p_i_c_c(2));
+  // const Eigen::Vector3d RdRdThetap = R_b2c * d_R_d_theta * p_i_v_v;
+  // const double dpx_dtheta =
+      // (fx * RdRdThetap(0) / p_i_c_c(2)) -
+      // (fx * RdRdThetap(2) * p_i_c_c(0) / p_i_c_c(2) / p_i_c_c(2));
+  // const Eigen::Vector3d RdRdPsip = R_b2c * d_R_d_psi * p_i_v_v;
+  // const double dpx_dpsi =
+      // (fx * RdRdPsip(0) / p_i_c_c(2)) -
+      // (fx * RdRdPsip(2) * p_i_c_c(0) / p_i_c_c(2) / p_i_c_c(2));
+
+  const Eigen::Vector3d dpx_dp =
+      ((fx * e1.transpose() * R_b2c * R_I2b) / p_i_c_c(2)) -
+      ((fx * e3.transpose() * R_b2c * R_I2b * p_i_c_c(0)) /
+       (p_i_c_c(2) * p_i_c_c(2)));
+
+  H.setZero();
+  // H(0, Estimator::xATT + 0) = dpx_dphi;
+  // H(0, Estimator::xATT + 1) = dpx_dtheta;
+  // H(0, Estimator::xATT + 2) = dpx_dpsi;
+  H.block<1, 2>(0, E::DGP) = dpx_dp.head(2);
+  H(0, E::DP + 2) = -dpx_dp(2);
+
+  // const double dpy_dphi =
+      // (fy * RdRdPhip(1) / p_i_c_c(2)) -
+      // (fy * RdRdPhip(2) * p_i_c_c(1) / p_i_c_c(2) / p_i_c_c(2));
+  // const double dpy_dtheta =
+      // (fy * RdRdThetap(1) / p_i_c_c(2)) -
+      // (fy * RdRdThetap(2) * p_i_c_c(1) / p_i_c_c(2) / p_i_c_c(2));
+  // const double dpy_dpsi =
+      // (fy * RdRdPsip(1) / p_i_c_c(2)) -
+      // (fy * RdRdPsip(2) * p_i_c_c(1) / p_i_c_c(2) / p_i_c_c(2));
+
+  const Eigen::Vector3d dpy_dp =
+      ((fy * e2.transpose() * R_b2c * R_I2b) / p_i_c_c(2)) -
+      ((fy * e3.transpose() * R_b2c * R_I2b * p_i_c_c(1)) /
+       (p_i_c_c(2) * p_i_c_c(2)));
+
+  // H(1, Estimator::xATT + 0) = dpy_dphi;
+  // H(1, Estimator::xATT + 1) = dpy_dtheta;
+  // H(1, Estimator::xATT + 2) = dpy_dpsi;
+  H.block<1, 2>(1, E::DGP) = dpy_dp.head(2);
+  H(1, E::DP + 2) = -dpy_dp(2);
+
+  // d / d theta_g
+  const Eigen::Matrix2d d_R_d_theta_g_2d = dR2DdTheta(theta_g);
+  // const Eigen::Matrix3d d_R_d_theta_g = dR3DdTheta(theta_g);
+  Eigen::Matrix3d d_R_d_theta_g;
+  d_R_d_theta_g.setZero();
+  d_R_d_theta_g.topLeftCorner(2, 2) = d_R_d_theta_g_2d;
+  const Vector3d d_theta_p_i_v_v = d_R_d_theta_g.transpose() * p_i_g_g;
+
+  const Eigen::Vector3d RRdRdThetaP = R_b2c * R_I2b * d_theta_p_i_v_v;
+  const double dpx_dtheta_g =
+      (fx * RRdRdThetaP(0) / p_i_c_c(2)) -
+      (fx * RRdRdThetaP(2) * p_i_c_c(0) / p_i_c_c(2) / p_i_c_c(2));
+  const double dpy_dtheta_g =
+      (fy * RRdRdThetaP(1) / p_i_c_c(2)) -
+      (fy * RRdRdThetaP(2) * p_i_c_c(1) / p_i_c_c(2) / p_i_c_c(2));
+  H(0, E::DGATT) = dpx_dtheta_g;
+  H(1, E::DGATT) = dpy_dtheta_g;
+
+  // d / d rxy
+  const Eigen::Matrix3d d_r_p_i_v_v = R_I2g.transpose();
+
+  const Eigen::Matrix3d RRdRdrp = R_b2c * R_I2b * d_r_p_i_v_v;
+  const Eigen::Matrix<double, 1, 3> dpx_dr =
+      (fx * RRdRdrp.block<1, 3>(0, 0) / p_i_c_c(2)) -
+      (fx * RRdRdrp.block<1, 3>(2, 0) * p_i_c_c(0) / p_i_c_c(2) / p_i_c_c(2));
+  const Eigen::Matrix<double, 1, 3> dpy_dr =
+      (fy * RRdRdrp.block<1, 3>(1, 0) / p_i_c_c(2)) -
+      (fy * RRdRdrp.block<1, 3>(2, 0) * p_i_c_c(1) / p_i_c_c(2) / p_i_c_c(2));
+  H.block<1, 3>(0, LM_IDX) = dpx_dr;
+  H.block<1, 3>(1, LM_IDX) = dpy_dr;
+
+  // z_resid_.head(lm_pix_dims) = pix - lm_pix_zhat.head(lm_pix_dims);
+  // z_R_.topLeftCorner(lm_pix_dims, lm_pix_dims) = landmarks_R_;
+  // update(lm_pix_dims, z_resid_, z_R_, H_);
 }
 
 void EKF::baroUpdate(const meas::Baro &z)

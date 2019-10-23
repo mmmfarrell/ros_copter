@@ -32,7 +32,8 @@
 #pragma once
 
 
-#include "ekf.h"
+#include "ekf/ekf.h"
+#include "ekf/image_feat.h"
 
 #include <mutex>
 #include <deque>
@@ -51,6 +52,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <std_msgs/Bool.h>
+#include <feature_tracker/ImageFeatures.h>
 
 #ifdef UBLOX
 #include "ublox/PosVelEcef.h"
@@ -81,6 +83,7 @@ public:
   void statusCallback(const rosflight_msgs::StatusConstPtr& msg);
 
   void arucoCallback(const geometry_msgs::PoseStampedConstPtr& msg);
+  void landmarksCallback(const feature_tracker::ImageFeaturesConstPtr& msg);
 
 #ifdef UBLOX
   void gnssCallbackUblox(const ublox::PosVelEcefConstPtr& msg);
@@ -106,6 +109,7 @@ private:
   ros::Subscriber odom_sub_;
   ros::Subscriber gnss_sub_;
   ros::Subscriber aruco_sub_;
+  ros::Subscriber lms_sub_;
 
   ros::Publisher odometry_pub_;
   ros::Publisher goal_odom_pub_;
@@ -143,6 +147,7 @@ private:
   ros::Time start_time_;
 
   Vector6d imu_;
+  ImageFeat lms_meas_;
   
   Matrix6d imu_R_;
   Matrix6d mocap_R_;
