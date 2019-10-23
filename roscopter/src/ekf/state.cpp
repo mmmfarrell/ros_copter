@@ -18,10 +18,10 @@ ErrorState::ErrorState() :
     bb(*(arr.data()+15)),
     ref(*(arr.data()+16)),
     gp(arr.data()+17),
-    gv(arr.data()+19),
-    gatt(*(arr.data()+21)),
-    gw(*(arr.data()+22)),
-    lms(arr.data()+23)
+    gv(arr.data()+20),
+    gatt(*(arr.data()+22)),
+    gw(*(arr.data()+23)),
+    lms(arr.data()+24)
 {
     arr.setConstant(NAN);
 }
@@ -120,10 +120,10 @@ State::State() :
     bb(*(arr.data()+17)),
     ref(*(arr.data()+18)),
     gp(arr.data()+19),
-    gv(arr.data()+21),
-    gatt(*(arr.data()+23)),
-    gw(*(arr.data()+24)),
-    lms(arr.data()+25),
+    gv(arr.data()+22),
+    gatt(*(arr.data()+24)),
+    gw(*(arr.data()+25)),
+    lms(arr.data()+26),
     imu(arr.data()+1+NX),
     a(arr.data()+1+NX),
     w(arr.data()+1+NX+3)
@@ -175,12 +175,12 @@ State State::operator+(const Matrix<double, ErrorState::SIZE, 1>& dx) const
     xp.bg = bg + dx.segment<3>(ErrorState::DBG);
     xp.bb = bb + dx(ErrorState::DBB);
     xp.ref = ref + dx(ErrorState::DREF);
-    xp.gp = gp + dx.segment<2>(ErrorState::DGP);
+    xp.gp = gp + dx.segment<3>(ErrorState::DGP);
     xp.gv = gv + dx.segment<2>(ErrorState::DGV);
     xp.gatt = gatt + dx(ErrorState::DGATT);
     xp.gw = gw + dx(ErrorState::DGW);
 
-    const Eigen::Map<const Eigen::Matrix<double, 3, MAX_LMS>> dx_lms(dx.data() + 23);
+    const Eigen::Map<const Eigen::Matrix<double, 3, MAX_LMS>> dx_lms(dx.data() + 24);
     xp.lms = lms + dx_lms;
 
     return xp;
@@ -195,12 +195,12 @@ State& State::operator+=(const VectorXd& dx)
     bg += dx.segment<3>(ErrorState::DBG);
     bb += dx(ErrorState::DBB);
     ref += dx(ErrorState::DREF);
-    gp += dx.segment<2>(ErrorState::DGP);
+    gp += dx.segment<3>(ErrorState::DGP);
     gv += dx.segment<2>(ErrorState::DGV);
     gatt += dx(ErrorState::DGATT);
     gw += dx(ErrorState::DGW);
 
-    const Eigen::Map<const Eigen::Matrix<double, 3, MAX_LMS>> dx_lms(dx.data() + 23);
+    const Eigen::Map<const Eigen::Matrix<double, 3, MAX_LMS>> dx_lms(dx.data() + 24);
     lms += dx_lms;
 
     return *this;

@@ -139,8 +139,8 @@ def plotImuBias():
 def plotArucoPosition():
     f = plt.figure()
     plt.suptitle('Aruco Position')
-    for i in range(2):
-        plt.subplot(2, 1, i+1)
+    for i in range(3):
+        plt.subplot(3, 1, i+1)
         plt.title(xtitles[i])
         plt.plot(data.x['t'], data.x['gp'][:,i], label=r"$\hat{x}$")
         if plotCov:
@@ -161,9 +161,9 @@ def plotArucoVelocity():
         plt.plot(data.x['t'], data.x['gv'][:,i], label=r"$\hat{x}$")
         if plotCov:
             plt.plot(data.cov['t'], data.x['gv'][:,i] +
-                    2.0*np.sqrt(data.cov['P'][:, i+19,i+19]), '-k', alpha=0.3)
+                    2.0*np.sqrt(data.cov['P'][:, i+20,i+20]), '-k', alpha=0.3)
             plt.plot(data.cov['t'], data.x['gv'][:,i] -
-                    2.0*np.sqrt(data.cov['P'][:, i+19,i+19]), '-k', alpha=0.3)
+                    2.0*np.sqrt(data.cov['P'][:, i+20,i+20]), '-k', alpha=0.3)
         if i == 0:
             plt.legend()
     pw.addPlot('Aruco Vel', f)
@@ -175,17 +175,17 @@ def plotArucoAttitude():
     plt.plot(data.x['t'], data.x['gatt'][:], label=r"$\hat{x}$")
     if plotCov:
         plt.plot(data.cov['t'], data.x['gatt'][:] +
-                2.0*np.sqrt(data.cov['P'][:, 21,21]), '-k', alpha=0.3)
+                2.0*np.sqrt(data.cov['P'][:, 22, 22]), '-k', alpha=0.3)
         plt.plot(data.cov['t'], data.x['gatt'][:] -
-                2.0*np.sqrt(data.cov['P'][:, 21,21]), '-k', alpha=0.3)
+                2.0*np.sqrt(data.cov['P'][:, 22, 22]), '-k', alpha=0.3)
     plt.legend()
     plt.subplot(2, 1, 2)
     plt.plot(data.x['t'], data.x['gw'][:], label=r"$\hat{x}$")
     if plotCov:
         plt.plot(data.cov['t'], data.x['gw'][:] +
-                2.0*np.sqrt(data.cov['P'][:, 22,22]), '-k', alpha=0.3)
+                2.0*np.sqrt(data.cov['P'][:, 23, 23]), '-k', alpha=0.3)
         plt.plot(data.cov['t'], data.x['gw'][:] -
-                2.0*np.sqrt(data.cov['P'][:, 22,22]), '-k', alpha=0.3)
+                2.0*np.sqrt(data.cov['P'][:, 23, 23]), '-k', alpha=0.3)
     pw.addPlot('Aruco Att', f)
 
 def plotLandmarks():
@@ -196,7 +196,7 @@ def plotLandmarks():
             plt.subplot(3, 4, 1 + 4*i + j)
             plt.plot(data.x['t'], data.x['lms'][:, j, i], label=r"$\hat{x}$")
             if plotCov:
-                lm_idx = 23 + 3 * j
+                lm_idx = 24 + 3 * j
                 plt.plot(data.cov['t'], data.x['lms'][:, j, i] +
                         2.0*np.sqrt(data.cov['P'][:, lm_idx + i, lm_idx + i]), '-k', alpha=0.3)
                 plt.plot(data.cov['t'], data.x['lms'][:, j, i] -

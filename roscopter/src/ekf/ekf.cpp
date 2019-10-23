@@ -212,6 +212,20 @@ void EKF::propagate(const double &t, const Vector6d &imu, const Matrix6d &R)
     Asmall*Psmall*Asmall.T + Bsmall*R*Bsmall.T + Qx_*dt*dt; // covariance propagation
   CHECK_NAN(xbuf_.next().P);
 
+  // // discretize jacobians (first order)
+  // A_ = I_BIG + A_*dt;
+  // B_ = B_*dt;
+
+  // CHECK_NAN(P());
+  // CHECK_NAN(A_);
+  // CHECK_NAN(B_);
+  // CHECK_NAN(Qx_);
+
+  // xbuf_.next().P =
+    // A_*P()*A_.T + B_*R*B_.T + Qx_; // covariance propagation
+    // // A_*P()*A_.T + B_*R*B_.T + Qx_*dt*dt; // covariance propagation
+  // CHECK_NAN(xbuf_.next().P);
+
   xbuf_.advance();
   Qu_ = R; // copy because we might need it later.
 
@@ -344,6 +358,7 @@ bool EKF::measUpdate(const VectorXd &res, const MatrixXd &R, const MatrixXd &H)
     x() += lambda_vec_.asDiagonal() * K * res;
     // dxMat ImKH = I_BIG - K*H;
     // P() += lambda_mat_.cwiseProduct(ImKH*P()*ImKH.T + K*R*K.T - P());
+
     // xsmall += lam_vec_small.asDiagonal() * K * res;
     auto ImKH = Ismall - Ksmall*Hsmall;
     Psmall += lam_mat_small.cwiseProduct(ImKH*Psmall*ImKH.T + Ksmall*R*Ksmall.T - Psmall);
@@ -646,6 +661,9 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
   const double py_hat = fy * (p_i_c_c(1) / p_i_c_c(2)) + cy;
   const Vector2d zhat(px_hat, py_hat);
   const Vector2d r = pix - zhat;
+  // std::cout << "update lm id: " << idx << std::endl;
+  // PRINTMAT(pix);
+  // PRINTMAT(zhat);
 
   using E = ErrorState;
 
@@ -745,10 +763,6 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
       (fy * RRdRdrp.block<1, 3>(2, 0) * p_i_c_c(1) / p_i_c_c(2) / p_i_c_c(2));
   H.block<1, 3>(0, LM_IDX) = dpx_dr;
   H.block<1, 3>(1, LM_IDX) = dpy_dr;
-
-  // z_resid_.head(lm_pix_dims) = pix - lm_pix_zhat.head(lm_pix_dims);
-  // z_R_.topLeftCorner(lm_pix_dims, lm_pix_dims) = landmarks_R_;
-  // update(lm_pix_dims, z_resid_, z_R_, H_);
 
   /// TODO: Saturate r
   if (use_lms_)
@@ -993,7 +1007,7 @@ void EKF::arucoUpdate(const meas::Aruco &z)
   // TODO account for positional offset of camera
 
   // rotate goal position from inertial frame to body frame to camera frame
-  const Vector2d goal_pos_2d = x().gp;
+  const Vector2d goal_pos_2d = x().gp.head(2);
   const Vector3d goal_pos(goal_pos_2d(0), goal_pos_2d(1), -x().p(2));
   const Vector3d zhat = q_b2c_.rotp(x().q.rotp(goal_pos) - p_b2c_);
   const Vector3d r = z.z - zhat;
@@ -1042,7 +1056,7 @@ void EKF::initGoal(const meas::Aruco& z)
   const Vector3d p_g_c_c = z.z;
   const Vector3d p_g_v_v =
       R_I2b.transpose() * (R_b2c.transpose() * p_g_c_c + p_b2c_);
-  x().gp = p_g_v_v.head<2>();
+  x().gp.head(2) = p_g_v_v.head<2>();
 
   // Janky way to get ArUco yaw
   quat::Quatd q_a2g = quat::Quatd(M_PI, 0., M_PI / 2.);

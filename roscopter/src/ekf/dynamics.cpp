@@ -30,7 +30,8 @@ void EKF::dynamics(const State &x, const Vector6d& u, ErrorState &dx, bool calc_
       // const Eigen::Vector3d goal_vel_I(goal_vel_I_2d(0), goal_vel_I_2d(1), 0.);
 
       // dx.gp = -x.q.rota(x.v);
-      dx.gp = goal_vel_I - x.q.rota(x.v).head<2>();
+      dx.gp.head(2) = goal_vel_I - x.q.rota(x.v).head<2>();
+      dx.gp(2) = 0.;
       dx.gv.setZero();
       dx.gatt = x.gw;
       dx.gw = 0.;
