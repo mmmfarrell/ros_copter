@@ -178,7 +178,7 @@ void EKF_ROS::publishEstimates(const sensor_msgs::ImuConstPtr &msg)
 
     goal_odom_msg_.pose.pose.position.x = state_est.gp(0);
     goal_odom_msg_.pose.pose.position.y = state_est.gp(1);
-    goal_odom_msg_.pose.pose.position.z = -state_est.p(2);
+    goal_odom_msg_.pose.pose.position.z = -state_est.gp(2) - state_est.p(2);
 
     const quat::Quatd q_I_g(0., 0., state_est.gatt);
     goal_odom_msg_.pose.pose.orientation.w = q_I_g.w();
