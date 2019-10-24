@@ -49,8 +49,8 @@ P0: [10.0, 10.0, 10.0, # pos
      0.001, 0.001, 0.001, # vel
      0.01, 0.01, 0.01, # accel bias
      0.001, 0.001, 0.001, # gyro bias
-     # 9.0,           # baro bias
-     0.0,           # baro bias
+     9.0,           # baro bias
+     # 0.0,           # baro bias
      100.0, # reference altitude
      1.0, 1.0, 1., # aruco position
      1.0, 1.0,      # aruco velocity
@@ -75,7 +75,7 @@ Qx: [0.000, 0.000, 0.000,       # pos
      0.00000001,                       # aruco attitude
      1.1]                       # aruco angular vel
      # 0.]                       # aruco angular vel
-Qx_lms: [0.1, 0.1, 0.1]
+Qx_lms: [0.5, 0.5, 0.5]
 
 ## Lambda (Partial Update)
 # 1.0 = use full update
@@ -119,7 +119,7 @@ attitude_noise_stdev: 0.01 # Mocap
 baro_pressure_noise_stdev: 10.0
 range_noise_stdev: 0.1
 aruco_pos_stdev: 0.1
-aruco_yaw_stdev: 0.01
+aruco_yaw_stdev: 0.1
 
 manual_gps_noise: false # choose noise params for GPS or use the values reported from the message topic
 gps_horizontal_stdev: 0.021
