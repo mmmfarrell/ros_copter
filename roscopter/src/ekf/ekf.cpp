@@ -567,7 +567,8 @@ void EKF::initLandmark(const int& id, const Vector2d& pix)
 
   const Eigen::Vector3d p_c_b_I = R_I2b * p_b2c_;
   // const double expected_altitude = xhat_(xGOAL_POS + 2) - p_c_b_I(2);
-  const double expected_altitude = -x().gp(2) - x().p(2) - p_c_b_I(2);
+  // const double expected_altitude = -x().gp(2) - x().p(2) - p_c_b_I(2);
+  const double expected_altitude = x().gp(2) - p_c_b_I(2);
 
   Eigen::Vector3d scaled_vec_veh_frame =
       (expected_altitude / unit_vec_veh_frame(2)) * unit_vec_veh_frame;
@@ -579,7 +580,8 @@ void EKF::initLandmark(const int& id, const Vector2d& pix)
   R_v2g.topLeftCorner(2, 2) = rotm2dItoB(theta_g);
 
   // Eigen::Vector3d p_g_v_v = xhat_.segment<3>(xGOAL_POS);
-  Eigen::Vector3d p_g_v_v(x().gp(0), x().gp(1), -x().gp(2)-x().p(2));
+  // Eigen::Vector3d p_g_v_v(x().gp(0), x().gp(1), -x().gp(2)-x().p(2));
+  Eigen::Vector3d p_g_v_v = x().gp;
   Eigen::Vector3d p_i_g_g = R_v2g * (p_i_v_v - p_g_v_v);
 
   // Init state with estimate
@@ -598,7 +600,7 @@ void EKF::removeLandmark(const int& lm_idx, const std::list<int>::iterator it)
   const int num_rows = E::SIZE - LM_IDX - 3;
   const int num_cols = num_rows;
 
-  const int num_lms_right = max_landmarks_ - lm_idx - 1;
+  const int num_lms_right = E::MAX_LMS - lm_idx - 1;
 
   // xhat_.block(LM_IDX, 0, num_rows, 1) = xhat_.bottomRows(num_rows);
   // // Zero out the unintialized xhat terms (NOT necessary)
@@ -651,7 +653,8 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
   const Eigen::Vector3d p_i_g_v = R_I2g.transpose() * p_i_g_g;
 
   // const Eigen::Vector3d p_g_v_v = x.segment<3>(Estimator::xGOAL_POS);
-  Eigen::Vector3d p_g_v_v(x().gp(0), x().gp(1), -x().gp(2)-x().p(2));
+  // Eigen::Vector3d p_g_v_v(x().gp(0), x().gp(1), -x().gp(2)-x().p(2));
+  Eigen::Vector3d p_g_v_v = x().gp;
   const Eigen::Vector3d p_i_v_v = p_i_g_v + p_g_v_v;
 
   const Eigen::Vector3d p_i_c_c = R_b2c * (R_I2b * p_i_v_v - p_b2c_);
@@ -704,9 +707,10 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
   // H(0, Estimator::xATT + 0) = dpx_dphi;
   // H(0, Estimator::xATT + 1) = dpx_dtheta;
   // H(0, Estimator::xATT + 2) = dpx_dpsi;
-  H.block<1, 2>(0, E::DGP) = dpx_dp.head(2);
-  H(0, E::DGP + 2) = -dpx_dp(2);
-  H(0, E::DP + 2) = -dpx_dp(2);
+  H.block<1, 3>(0, E::DGP) = dpx_dp;
+  // H.block<1, 2>(0, E::DGP) = dpx_dp.head(2);
+  // H(0, E::DGP + 2) = -dpx_dp(2);
+  // H(0, E::DP + 2) = -dpx_dp(2);
 
   // const double dpy_dphi =
       // (fy * RdRdPhip(1) / p_i_c_c(2)) -
@@ -731,9 +735,10 @@ void EKF::landmarkUpdate(const int& idx, const Vector2d& pix)
   // H(1, Estimator::xATT + 1) = dpy_dtheta;
   // H(1, Estimator::xATT + 2) = dpy_dpsi;
   H.block<1, 3>(1, E::DQ) = dpy_dq;
-  H.block<1, 2>(1, E::DGP) = dpy_dp.head(2);
-  H(1, E::DGP + 2) = -dpy_dp(2);
-  H(1, E::DP + 2) = -dpy_dp(2);
+  H.block<1, 3>(1, E::DGP) = dpy_dp;
+  // H.block<1, 2>(1, E::DGP) = dpy_dp.head(2);
+  // H(1, E::DGP + 2) = -dpy_dp(2);
+  // H(1, E::DP + 2) = -dpy_dp(2);
 
   // d / d theta_g
   const Eigen::Matrix2d d_R_d_theta_g_2d = dR2DdTheta(theta_g);
@@ -1009,8 +1014,9 @@ void EKF::arucoUpdate(const meas::Aruco &z)
   // TODO account for positional offset of camera
 
   // rotate goal position from inertial frame to body frame to camera frame
-  const Vector2d goal_pos_2d = x().gp.head(2);
-  const Vector3d goal_pos(goal_pos_2d(0), goal_pos_2d(1), -x().gp(2)-x().p(2));
+  // const Vector2d goal_pos_2d = x().gp.head(2);
+  // const Vector3d goal_pos(goal_pos_2d(0), goal_pos_2d(1), -x().gp(2)-x().p(2));
+  const Vector3d goal_pos = x().gp;
   const Vector3d zhat = q_b2c_.rotp(x().q.rotp(goal_pos) - p_b2c_);
   const Vector3d r = z.z - zhat;
 
@@ -1020,9 +1026,10 @@ void EKF::arucoUpdate(const meas::Aruco &z)
   typedef ErrorState E;
   Matrix<double, 3, E::NDX> H;
   H.setZero();
-  H.block<3, 1>(0, E::DP + 2) = -(R_b2c * R_I2b).rightCols(1);
-  H.block<3, 2>(0, E::DGP) = (R_b2c * R_I2b).leftCols(2);
-  H.block<3, 1>(0, E::DGP + 2) = -(R_b2c * R_I2b).rightCols(1);
+  H.block<3, 3>(0, E::DGP) = R_b2c * R_I2b;
+  // H.block<3, 1>(0, E::DP + 2) = -(R_b2c * R_I2b).rightCols(1);
+  // H.block<3, 2>(0, E::DGP) = (R_b2c * R_I2b).leftCols(2);
+  // H.block<3, 1>(0, E::DGP + 2) = -(R_b2c * R_I2b).rightCols(1);
   H.block<3, 3>(0, E::DQ) = R_b2c * R_I2b * skew(goal_pos);
 
   /// TODO: Saturate r
@@ -1059,8 +1066,9 @@ void EKF::initGoal(const meas::Aruco& z)
   const Vector3d p_g_c_c = z.z;
   const Vector3d p_g_v_v =
       R_I2b.transpose() * (R_b2c.transpose() * p_g_c_c + p_b2c_);
-  x().gp.head(2) = p_g_v_v.head<2>();
-  x().gp(2) = 0.;
+  x().gp = p_g_v_v;
+  // x().gp.head(2) = p_g_v_v.head<2>();
+  // x().gp(2) = 0.;
 
   // Janky way to get ArUco yaw
   quat::Quatd q_a2g = quat::Quatd(M_PI, 0., M_PI / 2.);
