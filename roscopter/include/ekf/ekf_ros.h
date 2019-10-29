@@ -78,6 +78,7 @@ public:
   void rangeCallback(const sensor_msgs::RangeConstPtr& msg);
   void poseCallback(const geometry_msgs::PoseStampedConstPtr &msg);
   void odomCallback(const nav_msgs::OdometryConstPtr &msg);
+  void goalOdomCallback(const nav_msgs::OdometryConstPtr &msg);
   void gnssCallback(const rosflight_msgs::GNSSConstPtr& msg);
   void mocapCallback(const ros::Time& time, const xform::Xformd &z);
   void statusCallback(const rosflight_msgs::StatusConstPtr& msg);
@@ -110,6 +111,7 @@ private:
   ros::Subscriber gnss_sub_;
   ros::Subscriber aruco_sub_;
   ros::Subscriber lms_sub_;
+  ros::Subscriber goal_odom_sub_;
 
   ros::Publisher odometry_pub_;
   ros::Publisher goal_odom_pub_;

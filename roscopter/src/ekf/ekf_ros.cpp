@@ -68,6 +68,7 @@ void EKF_ROS::initROS()
   gnss_sub_ = nh_.subscribe("gnss", 10, &EKF_ROS::gnssCallback, this);
   aruco_sub_ = nh_.subscribe("aruco", 10, &EKF_ROS::arucoCallback, this);
   lms_sub_ = nh_.subscribe("image_landmarks", 10, &EKF_ROS::landmarksCallback, this);
+  goal_odom_sub_ = nh_.subscribe("goal_truth", 10, &EKF_ROS::goalOdomCallback, this);
 
 #ifdef UBLOX
   ublox_gnss_sub_ = nh_.subscribe("ublox_gnss", 10, &EKF_ROS::gnssCallbackUblox, this);
@@ -290,6 +291,29 @@ void EKF_ROS::odomCallback(const nav_msgs::OdometryConstPtr &msg)
             msg->pose.pose.orientation.z;
 
   mocapCallback(msg->header.stamp, z);
+}
+
+void EKF_ROS::goalOdomCallback(const nav_msgs::OdometryConstPtr &msg)
+{
+  if (start_time_.sec == 0)
+    return;
+
+  xform::Xformd z;
+  z.arr_ << msg->pose.pose.position.x,
+            msg->pose.pose.position.y,
+            msg->pose.pose.position.z,
+            msg->pose.pose.orientation.w,
+            msg->pose.pose.orientation.x,
+            msg->pose.pose.orientation.y,
+            msg->pose.pose.orientation.z;
+  Eigen::Vector2d vel;
+  vel << msg->twist.twist.linear.x,
+         msg->twist.twist.linear.y;
+  const double omega = msg->twist.twist.angular.z;
+
+  // mocapCallback(msg->header.stamp, z);
+  double t = (msg->header.stamp - start_time_).toSec();
+  ekf_.goalOdomCallback(t, z, vel, omega);
 }
 
 void EKF_ROS::mocapCallback(const ros::Time &time, const xform::Xformd &z)

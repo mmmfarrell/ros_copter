@@ -94,6 +94,7 @@ public:
   void rangeCallback(const double& t, const double& z, const double& R);
   void gnssCallback(const double& t, const Vector6d& z, const Matrix6d& R);
   void mocapCallback(const double& t, const xform::Xformd& z, const Matrix6d& R);
+  void goalOdomCallback(const double& t, const xform::Xformd& z, const Eigen::Vector2d& vel, const double& omega);
 
   void arucoCallback(const double& t, const Eigen::Vector3d& z,
                      const Eigen::Matrix3d& R, const quat::Quatd& q_c2a,
@@ -138,6 +139,7 @@ public:
     LOG_IMU,
     LOG_LLA,
     LOG_REF,
+    LOG_GOAL_REF,
     NUM_LOGS
   };
   std::vector<std::string> log_names_ {
@@ -151,7 +153,8 @@ public:
     "aruco_res",
     "imu",
     "lla",
-    "ref"
+    "ref",
+    "goal_ref"
   };
   bool enable_log_;
   std::vector<Logger*> logs_;

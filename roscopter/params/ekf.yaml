@@ -17,6 +17,8 @@ landmarks_topic: "/image_features"
 start_time: 0
 duration: 1000
 
+stop_aruco_time: 20.
+
 ## Is_flying checks
 enable_arm_check: false # require armed before checking for is_flying
 is_flying_threshold: 10.5 # if accel measurement exceed this magnitude, set is_flying
@@ -30,8 +32,8 @@ enable_log: true
 enable_partial_update: true
 enable_out_of_order: false # TODO this isnt fully implemented
 use_mocap: true
-use_gnss: true
-use_baro: true
+use_gnss: false
+use_baro: false
 use_aruco: true
 use_lms: true
 use_range: false
@@ -51,7 +53,7 @@ P0: [10.0, 10.0, 10.0, # pos
      0.001, 0.001, 0.001, # gyro bias
      # 9.0,           # baro bias
      0.0,           # baro bias
-     100.0, # reference altitude
+     0.0, # reference altitude
      1.0, 1.0, 1., # aruco position
      1.0, 1.0,      # aruco velocity
      # 0.0, 0.0,      # aruco velocity
@@ -67,8 +69,8 @@ Qx: [0.000, 0.000, 0.000,       # pos
      0.0001, 0.0001, 0.0001,       # accel bias
      0.0001, 0.0001, 0.0001,    # gyro bias
      # 0.000000,                    # baro bias
-     1.01,                    # baro bias
-     1.0,                       # reference altitude
+     0.0,                    # baro bias
+     0.0,                       # reference altitude
      0.000001, 0.000001, 0.000001,              # aruco position
      1.1, 1.1,               # aruco velocity
      # 0., 0.,               # aruco velocity
@@ -85,8 +87,8 @@ lambda: [1.0, 1.0, 1.0,       # pos
          1.0, 1.0, 1.0,       # vel
          0.1, 0.1, 0.1,       # accel bias
          0.1, 0.1, 0.1,       # gyro bias
-         0.5,                 # baro bias
-         0.3,                 # reference altitude
+         0.,                 # baro bias
+         0.,                 # reference altitude
          1.0, 1.0, 1.0,        # aruco position
          1.0, 1.0,            # aruco velocity
          1.0,                 # aruco attitude
@@ -100,7 +102,7 @@ p_b2g: [0, 0, 0] # position from body frame to gps frame
 cam_K: [417.448099, 0.0, 298.002664, # Planck cam
          0.0, 419.52719, 255.051452,
          0.0, 0.0, 1.0]
-p_b2c: [0., 0., 0.] # position from body frame to camera frame
+p_b2c: [0., 0., 0.05] # position from body frame to camera frame
 q_b2c: [0.7071, 0, 0, 0.7071] # quaternion rotation from body frame to camera frame
 
 # Initial State

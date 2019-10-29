@@ -446,6 +446,24 @@ void EKF::gnssCallback(const double &t, const Vector6d &z, const Matrix6d &R)
   }
 }
 
+void EKF::goalOdomCallback(const double& t, const xform::Xformd& z,
+                           const Eigen::Vector2d& vel, const double& omega)
+{
+  if (enable_log_)
+  {
+    logs_[LOG_GOAL_REF]->log(t);
+    const Eigen::Vector3d pos = z.t_;
+    const double yaw = z.q().yaw();
+    // const Eigen::Vector2d vel = vel;
+    // logs_[LOG_GOAL_REF]->logVectors(z.arr(), z.q().euler());
+    logs_[LOG_GOAL_REF]->logVectors(pos);
+    logs_[LOG_GOAL_REF]->log(yaw);
+    logs_[LOG_GOAL_REF]->logVectors(vel);
+    logs_[LOG_GOAL_REF]->log(omega);
+  }
+
+}
+
 void EKF::mocapCallback(const double& t, const xform::Xformd& z, const Matrix6d& R)
 {
   if (enable_out_of_order_)
